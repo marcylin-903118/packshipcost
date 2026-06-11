@@ -1677,22 +1677,41 @@ function setGsUrl(url) {
   localStorage.setItem('gs_api_url', GS_URL);
 }
 
-// ── Google Apps Script 統一連線函數
-// Apps Script 不支援跨域 POST，全部用 GET + ?p=JSON 傳遞
-async function gsAPI(payload) {
-  if(!GS_URL) { showToast('⚠ 請先設定 Google Sheets API 網址'); return null; }
-  try {
-    const url = GS_URL + '?p=' + encodeURIComponent(JSON.stringify(payload));
-    const res = await fetch(url, { method:'GET', redirect:'follow' });
-    const text = await res.text();
-    const data = JSON.parse(text.trim().replace(/^\uFEFF/, ''));
-    if(data.error) { showToast('⚠ ' + data.error); return null; }
-    return data;
-  } catch(e) {
-    showToast('連線失敗: ' + e.message);
-    console.error('gsAPI error:', e);
-    return null;
-  }
+// ── Google Apps Script 連線（JSONP 方式，解決 CORS）
+// Apps Script Web App 不支援跨域 fetch，改用 <script> 標籤 JSONP
+function gsAPI(payload) {
+  return new Promise((resolve, reject) => {
+    if(!GS_URL) {
+      showToast('⚠ 請先設定 Google Sheets API 網址');
+      reject(new Error('no GS_URL'));
+      return;
+    }
+    // 建立唯一 callback 名稱
+    const cb = '_gs_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+    // 設定 callback 函數
+    window[cb] = function(data) {
+      cleanup();
+      if(data && data.error) { showToast('⚠ ' + data.error); resolve(null); }
+      else resolve(data);
+    };
+    // timeout 10 秒
+    const timer = setTimeout(() => {
+      cleanup();
+      showToast('連線逾時，請檢查 API 網址是否正確');
+      resolve(null);
+    }, 10000);
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cb];
+      if(script && script.parentNode) script.parentNode.removeChild(script);
+    }
+    // 建立 <script> 標籤
+    const url = GS_URL + '?callback=' + cb + '&p=' + encodeURIComponent(JSON.stringify(payload));
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = () => { cleanup(); showToast('連線失敗，請確認 API 網址並重新部署'); resolve(null); };
+    document.head.appendChild(script);
+  });
 }
 async function gsCall(params) { return gsAPI(params); }
 async function gsPost(body)   { return gsAPI(body);   }

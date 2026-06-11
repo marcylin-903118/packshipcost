@@ -1677,50 +1677,25 @@ function setGsUrl(url) {
   localStorage.setItem('gs_api_url', GS_URL);
 }
 
-async function gsCall(params) {
+// ── Google Apps Script 統一連線函數
+// Apps Script 不支援跨域 POST，全部用 GET + ?p=JSON 傳遞
+async function gsAPI(payload) {
   if(!GS_URL) { showToast('⚠ 請先設定 Google Sheets API 網址'); return null; }
   try {
-    const url = GS_URL + '?' + new URLSearchParams(params);
-    const res = await fetch(url);
-    const data = await res.json();
-    if(data.error) { showToast('錯誤: ' + data.error); return null; }
+    const url = GS_URL + '?p=' + encodeURIComponent(JSON.stringify(payload));
+    const res = await fetch(url, { method:'GET', redirect:'follow' });
+    const text = await res.text();
+    const data = JSON.parse(text.trim().replace(/^\uFEFF/, ''));
+    if(data.error) { showToast('⚠ ' + data.error); return null; }
     return data;
   } catch(e) {
     showToast('連線失敗: ' + e.message);
+    console.error('gsAPI error:', e);
     return null;
   }
 }
-
-async function gsPost(body) {
-  if(!GS_URL) { showToast('⚠ 請先設定 Google Sheets API 網址'); return null; }
-  try {
-    const res = await fetch(GS_URL, {
-      method:'POST',
-      body: JSON.stringify(body),
-      headers:{'Content-Type':'application/json'},
-      mode:'cors',
-    });
-    const data = await res.json();
-    if(data.error) { showToast('錯誤: ' + data.error); return null; }
-    return data;
-  } catch(e) {
-    // Apps Script 有時 CORS 需要用 GET 模式
-    showToast('POST 失敗，改用 GET 模式...');
-    return gsCallWithBody(body);
-  }
-}
-
-// Apps Script CORS workaround: encode body as URL param
-async function gsCallWithBody(body) {
-  const url = GS_URL + '?data=' + encodeURIComponent(JSON.stringify(body));
-  try {
-    const res = await fetch(url);
-    return await res.json();
-  } catch(e) {
-    showToast('連線失敗: ' + e.message);
-    return null;
-  }
-}
+async function gsCall(params) { return gsAPI(params); }
+async function gsPost(body)   { return gsAPI(body);   }
 
 // ── 從 Google Sheets 載入費率
 async function loadRatesFromSheets() {

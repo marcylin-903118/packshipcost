@@ -184,19 +184,30 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size
   .modal{width:96vw;padding:16px}
   /* basic table overflow */
   #basic-items-table{font-size:11px}
-  /* FAB: mobile save button */
-  .mobile-fab{
-    display:flex;position:fixed;right:16px;bottom:20px;z-index:100;
-    background:var(--accent);color:#fff;border:none;border-radius:50px;
-    padding:12px 20px;font-size:13px;font-weight:600;cursor:pointer;
-    box-shadow:0 4px 16px rgba(79,142,247,.5);gap:6px;align-items:center;
-    font-family:var(--font-ui);
+  /* 底部工具列 */
+  .mobile-toolbar{
+    display:flex;position:fixed;bottom:0;left:0;right:0;z-index:120;
+    background:var(--surface);border-top:1px solid var(--border2);
+    height:58px;align-items:stretch;
   }
+  .mob-btn{
+    flex:1;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:2px;background:transparent;border:none;
+    color:var(--text2);cursor:pointer;font-family:var(--font-ui);
+    transition:background .13s;padding:4px 2px;
+  }
+  .mob-btn:active{background:var(--accent-dim);}
+  .mob-icon{font-size:18px;line-height:1}
+  .mob-label{font-size:9px;letter-spacing:.3px;color:var(--text3)}
+  .main{padding-bottom:68px}
 }
-@media(min-width:769px){.mobile-fab{display:none}}
+@media(min-width:769px){
+  .mobile-toolbar{display:none}
+  .mobile-fab{display:none}
+}
 /* ── PRINT ────────────────────────────────── */
 @media print{
-  .header,.sidebar,.no-print,.mobile-fab{display:none!important}
+  .header,.sidebar,.no-print,.mobile-fab,.mobile-toolbar{display:none!important}
   .sidebar-overlay{display:none!important}
   .app{display:block;height:auto}
   .main{overflow:visible}
@@ -228,7 +239,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size
     <button class="btn btn-ghost btn-sm" onclick="openModal('modal-cy40')">⚙ CY40費率</button>
     <button class="btn btn-ghost btn-sm" onclick="openModal('modal-label')">⚙ 貼標費率</button>
     <div style="width:1px;height:20px;background:var(--border2)"></div>
-    <button class="btn btn-ghost btn-sm" onclick="showSettings()" title="設定 Google Sheets 連線">🔗 連線設定</button>
+    <button class="btn btn-ghost btn-sm mobile-show" onclick="showSettings()" title="設定 Google Sheets 連線">🔗</button>
     <button class="btn btn-ghost btn-sm" onclick="loadRatesFromSheets()">↓ 載入費率</button>
     <button class="btn btn-ghost btn-sm" onclick="showHistory()">📋 歷史報價</button>
     <button class="btn btn-primary btn-sm mobile-show" onclick="saveQuoteToSheets()">💾 儲存報價</button>
@@ -1677,40 +1688,80 @@ function setGsUrl(url) {
   localStorage.setItem('gs_api_url', GS_URL);
 }
 
-// ── Google Apps Script 連線（JSONP 方式，解決 CORS）
-// Apps Script Web App 不支援跨域 fetch，改用 <script> 標籤 JSONP
+// ── Google Apps Script 連線
+// 小資料（讀取）→ JSONP（<script> 標籤）
+// 大資料（儲存）→ hidden iframe form POST，用輪詢等待回應
 function gsAPI(payload) {
-  return new Promise((resolve, reject) => {
-    if(!GS_URL) {
-      showToast('⚠ 請先設定 Google Sheets API 網址');
-      reject(new Error('no GS_URL'));
-      return;
+  return new Promise((resolve) => {
+    if(!GS_URL) { showToast('⚠ 請先設定 Google Sheets API 網址'); resolve(null); return; }
+
+    const json = JSON.stringify(payload);
+    const encoded = encodeURIComponent(json);
+    const useForm = encoded.length > 1500; // 大資料用 form POST
+
+    if(!useForm) {
+      // ── JSONP 方式（小資料）
+      const cb = '_gs_' + Date.now();
+      window[cb] = (data) => {
+        clearTimeout(timer); delete window[cb];
+        if(sc && sc.parentNode) sc.parentNode.removeChild(sc);
+        if(data && data.error) { showToast('⚠ ' + data.error); resolve(null); }
+        else resolve(data);
+      };
+      const timer = setTimeout(() => {
+        delete window[cb];
+        if(sc && sc.parentNode) sc.parentNode.removeChild(sc);
+        showToast('連線逾時'); resolve(null);
+      }, 12000);
+      const sc = document.createElement('script');
+      sc.src = GS_URL + '?callback=' + cb + '&p=' + encoded;
+      sc.onerror = () => { clearTimeout(timer); delete window[cb]; showToast('連線失敗，請確認 Apps Script 已重新部署'); resolve(null); };
+      document.head.appendChild(sc);
+
+    } else {
+      // ── Form POST 方式（大資料，繞過 CORS + URL 長度限制）
+      // 建一個隱藏 iframe 作為 form target，Apps Script 回應會載入到 iframe
+      const iframeId = '_gsf_' + Date.now();
+      const iframe = document.createElement('iframe');
+      iframe.name = iframeId;
+      iframe.style.cssText = 'display:none;position:fixed;width:0;height:0';
+      document.body.appendChild(iframe);
+
+      // 建一個隱藏 form
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = GS_URL;
+      form.target = iframeId;
+      form.style.display = 'none';
+
+      // 把資料和 callback name 一起送
+      const cb = '_gs_' + Date.now();
+      [['p', json], ['callback', cb]].forEach(([k,v]) => {
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = k; inp.value = v;
+        form.appendChild(inp);
+      });
+      document.body.appendChild(form);
+
+      // callback 由 iframe 裡的 script 呼叫
+      window[cb] = (data) => {
+        clearTimeout(timer);
+        delete window[cb];
+        if(iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        if(form.parentNode)   form.parentNode.removeChild(form);
+        if(data && data.error) { showToast('⚠ ' + data.error); resolve(null); }
+        else resolve(data);
+      };
+
+      const timer = setTimeout(() => {
+        delete window[cb];
+        if(iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        if(form.parentNode)   form.parentNode.removeChild(form);
+        showToast('儲存逾時，請稍後再試'); resolve(null);
+      }, 20000);
+
+      form.submit();
     }
-    // 建立唯一 callback 名稱
-    const cb = '_gs_cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    // 設定 callback 函數
-    window[cb] = function(data) {
-      cleanup();
-      if(data && data.error) { showToast('⚠ ' + data.error); resolve(null); }
-      else resolve(data);
-    };
-    // timeout 10 秒
-    const timer = setTimeout(() => {
-      cleanup();
-      showToast('連線逾時，請檢查 API 網址是否正確');
-      resolve(null);
-    }, 10000);
-    function cleanup() {
-      clearTimeout(timer);
-      delete window[cb];
-      if(script && script.parentNode) script.parentNode.removeChild(script);
-    }
-    // 建立 <script> 標籤
-    const url = GS_URL + '?callback=' + cb + '&p=' + encodeURIComponent(JSON.stringify(payload));
-    const script = document.createElement('script');
-    script.src = url;
-    script.onerror = () => { cleanup(); showToast('連線失敗，請確認 API 網址並重新部署'); resolve(null); };
-    document.head.appendChild(script);
   });
 }
 async function gsCall(params) { return gsAPI(params); }
@@ -2078,6 +2129,24 @@ function generatePDF(){
 </div>
 
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
-<button class="mobile-fab no-print" onclick="saveQuoteToSheets()">💾 儲存報價</button>
+
+<!-- 手機底部工具列 -->
+<div class="mobile-toolbar no-print">
+  <button class="mob-btn" onclick="saveQuoteToSheets()">
+    <span class="mob-icon">💾</span><span class="mob-label">儲存</span>
+  </button>
+  <button class="mob-btn" onclick="showHistory()">
+    <span class="mob-icon">📋</span><span class="mob-label">歷史</span>
+  </button>
+  <button class="mob-btn" onclick="generatePDF()">
+    <span class="mob-icon">📄</span><span class="mob-label">PDF</span>
+  </button>
+  <button class="mob-btn" onclick="exportSummary()">
+    <span class="mob-icon">⬇</span><span class="mob-label">匯出</span>
+  </button>
+  <button class="mob-btn" onclick="recalcAll()">
+    <span class="mob-icon">↻</span><span class="mob-label">重算</span>
+  </button>
+</div>
 </body>
 </html>

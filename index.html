@@ -1,0 +1,2089 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>包裝運費估價系統</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=DM+Mono:wght@300;400;500&family=Barlow+Condensed:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f1117;--surface:#181c27;--surface2:#1e2436;--surface3:#252d42;
+  --border:#2a3350;--border2:#3a4a6a;
+  --accent:#4f8ef7;--accent2:#7eb8ff;--accent-dim:rgba(79,142,247,.15);
+  --green:#2ecc8a;--green-dim:rgba(46,204,138,.12);
+  --amber:#f5a623;--amber-dim:rgba(245,166,35,.12);
+  --red:#e05c5c;
+  --text:#e4eaf8;--text2:#8a9bc0;--text3:#5a6a8a;
+  --input-bg:#0d1020;--input-border:#2a3350;
+  --radius:8px;--radius-lg:14px;
+  --font-ui:'Noto Sans TC',sans-serif;
+  --font-mono:'DM Mono',monospace;
+  --font-display:'Barlow Condensed',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:13px;line-height:1.5;min-height:100vh}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:200}
+.logo{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:2px;color:var(--accent2);text-transform:uppercase}
+.logo span{color:var(--text2);font-weight:300}
+.header-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.app{display:flex;height:calc(100vh - 52px)}
+.sidebar{width:210px;min-width:210px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.main{flex:1;overflow-y:auto}
+.nav-section{padding:10px 0 2px}
+.nav-label{font-family:var(--font-display);font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);padding:0 14px 5px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 14px;cursor:pointer;color:var(--text2);font-size:12.5px;border-left:2px solid transparent;transition:all .13s;white-space:nowrap;overflow:hidden}
+.nav-item:hover{background:var(--accent-dim);color:var(--text)}
+.nav-item.active{background:var(--accent-dim);color:var(--accent2);border-left-color:var(--accent)}
+.nav-item .dot{width:5px;height:5px;border-radius:50%;background:var(--border2);flex-shrink:0}
+.nav-item.active .dot,.nav-item:hover .dot{background:var(--accent)}
+.nav-item.item-nav{padding-left:24px;font-size:12px}
+.nav-item.item-nav .num{font-family:var(--font-mono);font-size:10px;background:var(--surface3);color:var(--text3);padding:1px 5px;border-radius:3px;min-width:17px;text-align:center;flex-shrink:0}
+.nav-item.item-nav.active .num{background:var(--accent-dim);color:var(--accent)}
+.add-item-btn{margin:6px 10px;background:transparent;border:1px dashed var(--border2);color:var(--text3);border-radius:var(--radius);padding:6px;cursor:pointer;width:calc(100% - 20px);font-family:var(--font-ui);font-size:12px;transition:all .13s;display:flex;align-items:center;justify-content:center;gap:5px}
+.add-item-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+.panel{display:none;padding:20px 24px 40px}
+.panel.active{display:block;animation:fadeIn .18s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.page-title{font-family:var(--font-display);font-size:26px;font-weight:700;letter-spacing:1px;color:var(--text);margin-bottom:3px}
+.page-subtitle{color:var(--text3);font-size:11.5px;margin-bottom:18px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:14px}
+.card-title{font-family:var(--font-display);font-size:12.5px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent2);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.card-title::before{content:'';width:3px;height:13px;background:var(--accent);border-radius:2px;flex-shrink:0}
+.form-grid{display:grid;gap:10px}
+.fg2{grid-template-columns:repeat(2,1fr)}
+.fg3{grid-template-columns:repeat(3,1fr)}
+.fg4{grid-template-columns:repeat(4,1fr)}
+.fg5{grid-template-columns:repeat(5,1fr)}
+.field{display:flex;flex-direction:column;gap:3px}
+.field label{font-size:10.5px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.7px}
+.field input,.field select{
+  background:var(--input-bg);border:1px solid var(--input-border);
+  color:var(--text);border-radius:var(--radius);
+  padding:7px 9px;font-family:var(--font-mono);font-size:12px;
+  transition:border-color .13s,box-shadow .13s;width:100%
+}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,142,247,.12)}
+.field select{cursor:pointer;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235a6a8a'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;padding-right:26px}
+.field input[readonly],.field input.auto-val{background:var(--surface3);border-color:var(--border);color:var(--accent2);cursor:default}
+.field input.result-val{background:var(--green-dim);border-color:rgba(46,204,138,.3);color:var(--green);font-weight:500}
+.field .sub-label{font-size:10px;color:var(--text3);margin-top:2px}
+.badge-row{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap}
+.badge{font-size:10px;font-family:var(--font-mono);padding:2px 8px;border-radius:20px;letter-spacing:.4px}
+.badge.input{background:rgba(79,142,247,.18);color:var(--accent2);border:1px solid rgba(79,142,247,.3)}
+.badge.default{background:rgba(245,166,35,.13);color:var(--amber);border:1px solid rgba(245,166,35,.3)}
+.badge.auto{background:rgba(90,106,138,.18);color:var(--text3);border:1px solid var(--border2)}
+.badge.result{background:var(--green-dim);color:var(--green);border:1px solid rgba(46,204,138,.3)}
+/* Results bar - only 4 stats */
+.results-bar{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-lg);padding:14px 20px;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}
+.result-stat .lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.9px;margin-bottom:3px}
+.result-stat .val{font-family:var(--font-mono);font-size:18px;font-weight:500;color:var(--green)}
+.result-stat .val.secondary{font-size:13px;color:var(--accent2)}
+.result-stat .val2{font-family:var(--font-mono);font-size:12px;color:var(--text3);margin-top:2px}
+.shpterm-tabs{display:flex;gap:5px;margin-bottom:14px;flex-wrap:wrap}
+.shpterm-tab{padding:5px 13px;border-radius:var(--radius);border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer;font-family:var(--font-ui);font-size:12px;transition:all .13s}
+.shpterm-tab:hover{border-color:var(--accent);color:var(--accent2)}
+.shpterm-tab.active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent2);font-weight:500}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{text-align:left;padding:7px 9px;background:var(--surface3);color:var(--text3);font-weight:500;border-bottom:1px solid var(--border)}
+.data-table td{padding:6px 9px;border-bottom:1px solid var(--border);vertical-align:middle}
+.data-table tr:hover td{background:rgba(79,142,247,.03)}
+.data-table td.num{font-family:var(--font-mono);color:var(--accent2);text-align:right}
+.data-table td.rnum{font-family:var(--font-mono);color:var(--green);text-align:right;font-weight:500}
+.data-table td.dim-auto{font-family:var(--font-mono);color:var(--text3);font-size:11px;text-align:right}
+/* Editable table inputs */
+.data-table td input,.data-table td select{
+  background:var(--input-bg);border:1px solid var(--input-border);color:var(--text);
+  border-radius:4px;padding:3px 7px;font-family:var(--font-mono);font-size:11.5px;width:100%;
+  transition:border-color .13s
+}
+.data-table td input:focus,.data-table td select:focus{outline:none;border-color:var(--accent)}
+.data-table td select{appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='%235a6a8a'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 6px center;padding-right:20px}
+.data-table td input.td-auto{background:var(--surface3);border-color:var(--border);color:var(--accent2)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:var(--radius);font-family:var(--font-ui);font-size:12px;cursor:pointer;border:none;transition:all .13s;font-weight:500;white-space:nowrap}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#6a9ef8}
+.btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent2);background:var(--accent-dim)}
+.btn-danger{background:rgba(224,92,92,.13);color:var(--red);border:1px solid rgba(224,92,92,.3)}
+.btn-danger:hover{background:rgba(224,92,92,.22)}
+.btn-sm{padding:4px 10px;font-size:11px}
+.btn-print{background:var(--green-dim);color:var(--green);border:1px solid rgba(46,204,138,.3)}
+.btn-print:hover{background:rgba(46,204,138,.22)}
+.item-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap}
+.item-title{font-family:var(--font-display);font-size:22px;font-weight:700;letter-spacing:2px}
+.item-badge{font-size:11px;padding:3px 10px;background:var(--surface3);border:1px solid var(--border2);border-radius:20px;color:var(--text3);font-family:var(--font-mono)}
+.item-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.sep{border:none;border-top:1px solid var(--border);margin:12px 0}
+.notice{background:var(--amber-dim);border:1px solid rgba(245,166,35,.3);border-radius:var(--radius);padding:9px 13px;color:var(--amber);font-size:11px;margin-bottom:14px}
+.compare-table{width:100%;border-collapse:collapse;font-size:12px}
+.compare-table th{padding:9px 12px;background:var(--surface3);font-family:var(--font-display);letter-spacing:1px;font-size:11px;text-transform:uppercase;color:var(--text2)}
+.compare-table td{padding:8px 12px;border-bottom:1px solid var(--border)}
+.compare-table td:not(:first-child){font-family:var(--font-mono);text-align:right}
+.compare-table .best{color:var(--green);font-weight:600}
+.compare-table .hl td{background:var(--green-dim)}
+.tag-cfs{color:#7eb8ff}.tag-cy20{color:#2ecc8a}.tag-cy40{color:var(--amber)}
+.ref-scroll{overflow-x:auto}
+.ref-table{border-collapse:collapse;font-size:11px;font-family:var(--font-mono);min-width:500px}
+.ref-table th,.ref-table td{padding:5px 8px;border:1px solid var(--border)}
+.ref-table th{background:var(--surface3);color:var(--text3)}
+.ref-table td{color:var(--text2)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:500;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius-lg);width:min(92vw,920px);max-height:86vh;overflow-y:auto;padding:22px}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal-title{font-family:var(--font-display);font-size:19px;font-weight:700;letter-spacing:1px;color:var(--accent2)}
+.modal-close{background:transparent;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:3px 8px;border-radius:4px;line-height:1}
+.modal-close:hover{color:var(--text);background:var(--surface3)}
+.section-label{font-size:11px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:1px;margin:10px 0 6px;padding-left:2px;border-left:2px solid var(--border2)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+/* ── MOBILE RWD ───────────────────────────── */
+.hamburger{display:none;background:transparent;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:4px 8px;line-height:1;margin-left:-4px}
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:149}
+.sidebar-overlay.open{display:block}
+@media(max-width:768px){
+  .hamburger{display:flex;align-items:center}
+  .header{padding:0 14px;height:48px}
+  .logo{font-size:16px}
+  .header-actions{gap:5px}
+  /* hide most header buttons on mobile, show only key ones */
+  .header-actions .btn-ghost:not(.mobile-show){display:none}
+  .header-actions .btn-primary{font-size:11px;padding:5px 9px}
+  .app{height:calc(100vh - 48px)}
+  /* Sidebar becomes drawer on mobile */
+  .sidebar{
+    position:fixed;left:0;top:48px;bottom:0;z-index:150;
+    transform:translateX(-100%);transition:transform .25s ease;
+    width:240px;min-width:0;box-shadow:4px 0 20px rgba(0,0,0,.4)
+  }
+  .sidebar.open{transform:translateX(0)}
+  .main{padding-bottom:80px}
+  /* Panel padding tighter */
+  .panel{padding:14px 14px 32px}
+  /* form-grid collapse to 2 cols on mobile */
+  .fg4,.fg5{grid-template-columns:repeat(2,1fr)}
+  .fg3{grid-template-columns:repeat(2,1fr)}
+  /* Results bar 2x2 */
+  .results-bar{grid-template-columns:repeat(2,1fr);padding:12px 14px}
+  .result-stat .val{font-size:15px}
+  /* Tables scroll horizontally */
+  .data-table{font-size:11px}
+  .data-table th,.data-table td{padding:5px 7px}
+  /* Cards */
+  .card{padding:12px 13px}
+  /* item header stack vertically */
+  .item-header{flex-direction:column;gap:10px}
+  .item-actions{width:100%;justify-content:flex-start}
+  /* modals full-width */
+  .modal{width:96vw;padding:16px}
+  /* basic table overflow */
+  #basic-items-table{font-size:11px}
+  /* FAB: mobile save button */
+  .mobile-fab{
+    display:flex;position:fixed;right:16px;bottom:20px;z-index:100;
+    background:var(--accent);color:#fff;border:none;border-radius:50px;
+    padding:12px 20px;font-size:13px;font-weight:600;cursor:pointer;
+    box-shadow:0 4px 16px rgba(79,142,247,.5);gap:6px;align-items:center;
+    font-family:var(--font-ui);
+  }
+}
+@media(min-width:769px){.mobile-fab{display:none}}
+/* ── PRINT ────────────────────────────────── */
+@media print{
+  .header,.sidebar,.no-print,.mobile-fab{display:none!important}
+  .sidebar-overlay{display:none!important}
+  .app{display:block;height:auto}
+  .main{overflow:visible}
+  .panel{display:none!important}
+  .panel.active{display:block!important;padding:8px}
+  body{background:#fff;color:#000;font-size:11px}
+  .card{border:1px solid #ccc;break-inside:avoid;margin-bottom:8px;padding:10px}
+  .results-bar{border:1px solid #ccc;padding:10px;grid-template-columns:repeat(4,1fr)}
+  .result-stat .val{color:#006600}.result-stat .val.secondary{color:#0044cc}
+  .data-table td,.data-table th{border-color:#ccc}
+  input,select{background:#fff!important;color:#000!important;border:1px solid #ccc!important;box-shadow:none!important}
+  .item-badge{border-color:#999;color:#333;background:#eee}
+  .item-title{color:#000}
+  /* PDF report page */
+  .pdf-report{display:block!important}
+  .pdf-report *{color:#000!important;background:#fff!important}
+}
+</style>
+</head>
+<body>
+<header class="header">
+  <div style="display:flex;align-items:center;gap:8px">
+    <button class="hamburger no-print" onclick="toggleSidebar()" aria-label="選單">☰</button>
+    <div class="logo">PACK<span>·</span>SHIP <span style="font-size:11px;letter-spacing:1px">估價系統</span></div>
+  </div>
+  <div class="header-actions no-print">
+    <button class="btn btn-ghost btn-sm" onclick="openModal('modal-cfs')">⚙ CFS費率</button>
+    <button class="btn btn-ghost btn-sm" onclick="openModal('modal-cy20')">⚙ CY20費率</button>
+    <button class="btn btn-ghost btn-sm" onclick="openModal('modal-cy40')">⚙ CY40費率</button>
+    <button class="btn btn-ghost btn-sm" onclick="openModal('modal-label')">⚙ 貼標費率</button>
+    <div style="width:1px;height:20px;background:var(--border2)"></div>
+    <button class="btn btn-ghost btn-sm" onclick="showSettings()" title="設定 Google Sheets 連線">🔗 連線設定</button>
+    <button class="btn btn-ghost btn-sm" onclick="loadRatesFromSheets()">↓ 載入費率</button>
+    <button class="btn btn-ghost btn-sm" onclick="showHistory()">📋 歷史報價</button>
+    <button class="btn btn-primary btn-sm mobile-show" onclick="saveQuoteToSheets()">💾 儲存報價</button>
+    <div style="width:1px;height:20px;background:var(--border2)"></div>
+    <button class="btn btn-ghost btn-sm" onclick="generatePDF()">📄 PDF報價單</button>
+    <button class="btn btn-ghost btn-sm" onclick="saveState();showToast('✓ 已暫存到瀏覽器')">💾 暫存</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearState()" title="清除所有暫存資料">🗑 清除暫存</button>
+    <button class="btn btn-ghost btn-sm" onclick="exportSummary()">⬇ 匯出摘要</button>
+    <button class="btn btn-ghost btn-sm" onclick="recalcAll()">↻ 全部重算</button>
+  </div>
+</header>
+<div class="app">
+  <nav class="sidebar no-print">
+    <div class="nav-section">
+      <div class="nav-label">報價資訊</div>
+      <div class="nav-item active" onclick="showPanel('basic')" id="nav-basic"><div class="dot"></div>報價基本資訊</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">報價項目</div>
+      <div id="items-nav"></div>
+      <button class="add-item-btn" onclick="addItemAndGo()">＋ 新增 ITEM</button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">比較</div>
+      <div class="nav-item" onclick="showPanel('compare')" id="nav-compare"><div class="dot"></div>運費比較</div>
+    </div>
+  </nav>
+  <main class="main" id="main">
+    <div class="panel active" id="panel-basic">
+      <div class="page-title">報價基本資訊</div>
+      <div class="page-subtitle">填寫後各 ITEM 頁面自動帶入基本參數</div>
+      <div class="badge-row">
+        <span class="badge input">🔵 手動輸入</span>
+        <span class="badge default">🟡 預設值(可改)</span>
+        <span class="badge auto">⚪ 自動計算</span>
+        <span class="badge result">🟢 報價結果</span>
+      </div>
+      <div class="card">
+        <div class="card-title">報價資訊</div>
+        <div class="form-grid fg4">
+          <div class="field"><label>報價日期</label><input type="date" id="b-date"></div>
+          <div class="field"><label>客戶代號</label><input type="text" id="b-customer" placeholder="如 SS4001" oninput="recalcAll()"></div>
+          <div class="field"><label>報價單號</label><input type="text" id="b-quono" placeholder="如 AA26008"></div>
+          <div class="field"><label>美金匯率</label><input type="number" id="b-usdrate" value="31" step="0.1" oninput="recalcAll()"></div>
+          <div class="field"><label>HKD匯率</label><input type="number" id="b-hkdrate" value="4" step="0.1" oninput="recalcAll()"></div>
+          <div class="field"><label>海運價格代號</label>
+            <select id="b-shipprice" onchange="recalcAll()">
+              <option value="1">1 — TDSJ (NNR)</option><option value="2">2 — TDSJ (HHE)</option>
+              <option value="3">3 — TDSNA (OOCL)</option><option value="4">4 — LVP (OOCL)</option>
+              <option value="5">5 — DSLD/WDW (OOCL)</option><option value="6">6 — TDSE (OOCL)</option>
+              <option value="7">7 — SHDR (OOCL)</option><option value="8">8 — Paperchase (DAMCO)</option>
+              <option value="9">9 — HKDL (KWE)</option><option value="10" selected>10 — HKDL (高寶AOC)</option>
+              <option value="11">11 — 愛罐 (扶晟)</option><option value="12">12 — 愛罐 CIF (NNR)</option>
+              <option value="13">13 — 貿商USA (YuSen)</option>
+            </select>
+          </div>
+          <div class="field"><label>貼標類型</label>
+            <select id="b-labeltype" onchange="recalcAll()">
+              <option value="1">1 — HKDL</option><option value="2">2 — TDSJ</option>
+              <option value="3">3 — DSMD</option><option value="4" selected>4 — Others</option>
+            </select>
+          </div>
+          <div class="field"><label>報價單位</label>
+            <select id="b-quounit" onchange="recalcAll()">
+              <option value="PCS" selected>PCS（件）</option>
+              <option value="SET">SET（套）</option>
+            </select>
+            <span class="sub-label">PCS包工NT$3 / SET包工NT$6；SET警語標預設0</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">產品列表</div>
+        <div class="notice">⚠ 長/寬/高欄位下方即時顯示換算值。「→ 詳細」進入各 ITEM 細節設定。</div>
+        <div style="overflow-x:auto">
+          <table class="data-table" id="basic-items-table">
+            <thead>
+              <tr>
+                <th style="width:34px">#</th>
+                <th style="min-width:88px">ITEM NO.</th>
+                <th style="width:108px">輸入單位</th>
+                <th style="min-width:130px">長</th>
+                <th style="min-width:130px">寬</th>
+                <th style="min-width:130px">高</th>
+                <th style="min-width:68px">重量(g)</th>
+                <th style="width:110px"></th>
+              </tr>
+            </thead>
+            <tbody id="basic-items-body"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px">
+          <button class="btn btn-ghost btn-sm" onclick="addItemAndGo()">＋ 新增產品行</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel" id="panel-compare">
+      <div class="page-title">運費方式比較</div>
+      <div class="page-subtitle">各 ITEM 在 CFS / CY20 / CY40 的費用比較</div>
+      <div id="compare-content"></div>
+    </div>
+    <div id="item-panels"></div>
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-cfs">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">CFS 散貨費率資料庫</div><button class="modal-close" onclick="closeModal('modal-cfs')">✕</button></div>
+    <div class="form-grid fg5" style="margin-bottom:14px">
+      <div class="field"><label>HKD匯率</label><input type="number" id="cfs-hkd" value="4" step="0.1" oninput="recalcAll()"></div>
+      <div class="field"><label>卡車費(&lt;100 cbm)</label><input type="number" id="cfs-t1" value="1500" oninput="recalcAll()"></div>
+      <div class="field"><label>卡車費(&lt;300 cbm)</label><input type="number" id="cfs-t2" value="3800" oninput="recalcAll()"></div>
+      <div class="field"><label>卡車費(&lt;500 cbm)</label><input type="number" id="cfs-t3" value="4000" oninput="recalcAll()"></div>
+      <div class="field"><label>卡車費(&lt;700 cbm)</label><input type="number" id="cfs-t4" value="4500" oninput="recalcAll()"></div>
+    </div>
+    <div class="ref-scroll" id="cfs-table-container"></div>
+    <div style="text-align:right;margin-top:14px"><button class="btn btn-primary btn-sm" onclick="closeModal('modal-cfs');recalcAll()">✓ 儲存並關閉</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-cy20">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">CY 20' 費率資料庫</div><button class="modal-close" onclick="closeModal('modal-cy20')">✕</button></div>
+    <div class="form-grid fg3" style="margin-bottom:14px">
+      <div class="field"><label>拖櫃費用 (NT$)</label><input type="number" id="cy20-drag" value="3800" oninput="recalcAll()"></div>
+      <div class="field"><label>HKD匯率</label><input type="number" id="cy20-hkd" value="4.5" oninput="recalcAll()"></div>
+      <div class="field"><label>美金匯率</label><input type="number" id="cy20-usd" value="32.8" oninput="recalcAll()"></div>
+    </div>
+    <div id="cy20-table-container"></div>
+    <div style="text-align:right;margin-top:14px"><button class="btn btn-primary btn-sm" onclick="closeModal('modal-cy20');recalcAll()">✓ 儲存並關閉</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-cy40">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">CY 40' 費率資料庫</div><button class="modal-close" onclick="closeModal('modal-cy40')">✕</button></div>
+    <div class="form-grid fg3" style="margin-bottom:14px">
+      <div class="field"><label>拖櫃費用 (NT$)</label><input type="number" id="cy40-drag" value="4500" oninput="recalcAll()"></div>
+      <div class="field"><label>HKD匯率</label><input type="number" id="cy40-hkd" value="4.5" oninput="recalcAll()"></div>
+      <div class="field"><label>美金匯率</label><input type="number" id="cy40-usd" value="32.8" oninput="recalcAll()"></div>
+    </div>
+    <div id="cy40-table-container"></div>
+    <div style="text-align:right;margin-top:14px"><button class="btn btn-primary btn-sm" onclick="closeModal('modal-cy40');recalcAll()">✓ 儲存並關閉</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-label">
+  <div class="modal" style="max-width:530px">
+    <div class="modal-header"><div class="modal-title">貼標費率資料庫</div><button class="modal-close" onclick="closeModal('modal-label')">✕</button></div>
+    <p style="color:var(--text3);font-size:11px;margin-bottom:12px">DSMD = TDSNA, DSLD, WDW, LVP &nbsp;|&nbsp; 單位：元/個</p>
+    <table class="data-table">
+      <thead><tr><th>標籤類型</th><th>1 HKDL</th><th>2 TDSJ</th><th>3 DSMD</th><th>4 Others</th></tr></thead>
+      <tbody>
+        <tr><td>警語批號標</td><td><input type="number" id="lp-warn-0" value="0" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-warn-1" value="0.33" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-warn-2" value="2" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-warn-3" value="2" step="0.01" oninput="recalcAll()"></td></tr>
+        <tr><td>價標</td><td><input type="number" id="lp-price-0" value="0.2" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-price-1" value="0.12" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-price-2" value="0.5" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-price-3" value="0.5" step="0.01" oninput="recalcAll()"></td></tr>
+        <tr><td>內盒標</td><td><input type="number" id="lp-inner-0" value="0.7" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-inner-1" value="0.12" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-inner-2" value="0.5" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-inner-3" value="0.5" step="0.01" oninput="recalcAll()"></td></tr>
+        <tr><td>外箱標</td><td><input type="number" id="lp-outer-0" value="1.85" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-outer-1" value="0.12" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-outer-2" value="0.16" step="0.01" oninput="recalcAll()"></td><td><input type="number" id="lp-outer-3" value="0.16" step="0.01" oninput="recalcAll()"></td></tr>
+      </tbody>
+    </table>
+    <div style="text-align:right;margin-top:14px"><button class="btn btn-primary btn-sm" onclick="closeModal('modal-label');recalcAll()">✓ 儲存並關閉</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const CM=2.54, FEN=3.3, CBM2CUFT=35.3147;
+function getLABOR(){ return document.getElementById('b-quounit')?.value==='SET'?6:3; }
+// 紙板成本係數 (從Excel反推 N37公式: L37*2.6 + max(0, 3.5-L37))
+// L37 = 台分材積換算公式: ((D_fen+H_fen+1)/100)*((L_fen+D_fen)*2+10)/100
+// 直接用體積近似: 0.02441 NT$/台分³
+const PAPER=0.02441;
+
+const CFS=[
+  {id:1, name:'TDSJ (NNR)',        cfs:380,fr:0,  thc:0,  baf:0,  ls:0,  im:0, mach:65,customs:1750,seal:0, doc:1100,edoc:0,telex:500, hdl:0,  sco:0, ens:0, afr:775, vgm:0,  ins:0},
+  {id:2, name:'TDSJ (HHE)',        cfs:380,fr:0,  thc:0,  baf:0,  ls:0,  im:0, mach:65,customs:1750,seal:0, doc:300, edoc:0,telex:1000,hdl:0,  sco:0, ens:0, afr:452, vgm:0,  ins:0},
+  {id:3, name:'TDSNA (OOCL)',      cfs:400,fr:0,  thc:0,  baf:0,  ls:0,  im:0, mach:65,customs:1750,seal:48,doc:1800,edoc:0,telex:0,   hdl:500,sco:0, ens:0, afr:0,   vgm:750,ins:0},
+  {id:4, name:'LVP (OOCL)',        cfs:465,fr:0,  thc:0,  baf:0,  ls:0,  im:0, mach:65,customs:1750,seal:48,doc:2821,edoc:0,telex:1550,hdl:0,  sco:0, ens:0, afr:0,   vgm:465,ins:0},
+  {id:5, name:'DSLD/WDW (OOCL)',  cfs:400,fr:0,  thc:280,baf:0,  ls:140,im:0, mach:65,customs:1750,seal:40,doc:3000,edoc:124,telex:0,  hdl:500,sco:0, ens:0, afr:0,   vgm:450,ins:0},
+  {id:6, name:'TDSE (OOCL)',       cfs:400,fr:0,  thc:0,  baf:0,  ls:0,  im:0, mach:65,customs:1750,seal:0, doc:2720,edoc:0,telex:0,   hdl:500,sco:0, ens:0, afr:0,   vgm:0,  ins:0},
+  {id:7, name:'SHDR (OOCL)',       cfs:400,fr:0,  thc:0,  baf:0,  ls:0,  im:0, mach:65,customs:1750,seal:40,doc:1800,edoc:0,telex:0,   hdl:500,sco:0, ens:0, afr:0,   vgm:0,  ins:0},
+  {id:8, name:'Paperchase',        cfs:400,fr:0,  thc:150,baf:0,  ls:0,  im:40,mach:65,customs:2050,seal:6, doc:900, edoc:0,telex:500, hdl:0,  sco:120,ens:15,afr:0,   vgm:465,ins:0},
+  {id:9, name:'HKDL (KWE)',        cfs:450,fr:0,  thc:0,  baf:0,  ls:200,im:0, mach:65,customs:1750,seal:0, doc:2600,edoc:0,telex:0,   hdl:0,  sco:0, ens:0, afr:0,   vgm:0,  ins:0},
+  {id:10,name:'HKDL (高寶AOC)',    cfs:380,fr:0,  thc:0,  baf:200,ls:0,  im:0, mach:65,customs:1750,seal:0, doc:1800,edoc:0,telex:500, hdl:0,  sco:0, ens:0, afr:0,   vgm:0,  ins:0},
+  {id:11,name:'愛罐 (扶晟)',        cfs:450,fr:0,  thc:0,  baf:0,  ls:100,im:0, mach:65,customs:1750,seal:0, doc:1850,edoc:0,telex:0,   hdl:500,sco:0, ens:0, afr:775, vgm:0,  ins:0},
+  {id:12,name:'愛罐 CIF (NNR)',    cfs:450,fr:620,thc:0,  baf:0,  ls:100,im:0, mach:65,customs:1750,seal:0, doc:1100,edoc:0,telex:500, hdl:0,  sco:0, ens:0, afr:775, vgm:0,  ins:400},
+  {id:13,name:'貿商USA (YuSen)', cfs:480,fr:0,  thc:0,  baf:0,  ls:0,  im:0, mach:65,customs:1750,seal:48,doc:2000,edoc:0,telex:800, hdl:0,  sco:0, ens:0, afr:1085,vgm:0,  ins:0},
+];
+const CY20=[{id:1,name:'TDSJ (NNR)',fixed:11791.5},{id:5,name:'DSLD/WDW',fixed:11618.25},{id:7,name:'Paperchase',fixed:13324.5},{id:9,name:'HKDL (KWE)',fixed:11655},{id:10,name:'HKDL (高寶AOC)',fixed:11655},{id:11,name:'愛罐 FOB',fixed:11812.5}];
+const CY40=[{id:1,name:'TDSJ (NNR)',fixed:14387.1},{id:2,name:'TDSNA (OOCL)',fixed:12280.8},{id:4,name:'DSLD/WDW',fixed:12280.8},{id:5,name:'TDSE (OOCL)',fixed:12712.35},{id:7,name:'Paperchase',fixed:14408.1}];
+
+let items=[], nid=1;
+
+// ── HELPERS
+const f2=n=>(isNaN(n)||!isFinite(n))?'–':n.toFixed(2);
+const f3=n=>(isNaN(n)||!isFinite(n))?'–':n.toFixed(3);
+const f4=n=>(isNaN(n)||!isFinite(n))?'–':n.toFixed(4);
+const f6=n=>(isNaN(n)||!isFinite(n))?'–':n.toFixed(6);
+const sv=(id,v,inp=false)=>{const e=document.getElementById(id);if(!e)return;inp?e.value=String(v):e.textContent=String(v);};
+const gv=id=>{const e=document.getElementById(id);return e?+e.value:0;};
+
+window.addEventListener('DOMContentLoaded',()=>{
+  buildCFSTable();buildCY20Table();buildCY40Table();
+  const restored = loadState();
+  if(!restored){
+    // 第一次使用：載入範例資料
+    document.getElementById('b-date').valueAsDate=new Date();
+    addItem({itemno:'CD8260',weight:170,lI:8.25,wI:6,   hI:1.45,unit:'inch'});
+    addItem({itemno:'CD8560',weight:180,lI:8.5, wI:8.5, hI:1.3, unit:'inch'});
+    addItem({itemno:'CP806', weight:130,lI:8.5, wI:8.5, hI:0.8, unit:'inch'});
+  }
+  renderNav();renderBasic();
+  items.forEach((_,i)=>ensurePanel(i));
+  recalcAll();
+});
+
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+document.addEventListener('click',e=>{if(e.target.classList.contains('modal-overlay'))e.target.classList.remove('open')});
+
+function showPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const p=document.getElementById('panel-'+id);if(p)p.classList.add('active');
+  const n=document.getElementById('nav-'+id);if(n)n.classList.add('active');
+  document.getElementById('main').scrollTo(0,0);
+  if(id==='compare')buildCompare();
+}
+function showItemPanel(i){
+  ensurePanel(i);
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-item-'+i).classList.add('active');
+  const n=document.getElementById('nav-item-'+i);if(n)n.classList.add('active');
+  document.getElementById('main').scrollTo(0,0);
+}
+function renderNav(){
+  document.getElementById('items-nav').innerHTML=items.map((it,i)=>`
+    <div class="nav-item item-nav" id="nav-item-${i}" onclick="showItemPanel(${i})">
+      <span class="num">${i+1}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis">${it.itemno||'(未命名)'}</span>
+    </div>`).join('');
+}
+
+// ── ITEMS
+function addItemAndGo(){const i=items.length;addItem();showItemPanel(i);}
+function addItem(d={}){
+  const i=items.length;
+  const lI=d.lI||0,wI=d.wI||0,hI=d.hI||0;
+  const it={
+    id:nid++,idx:i,itemno:d.itemno||'',weight:d.weight||150,unit:d.unit||'inch',
+    lI,wI,hI,lCm:lI*CM,wCm:wI*CM,hCm:hI*CM,
+    qty:d.qty||500,shpTerm:'CFS',quoTerm:'FOB',combo:1,
+    // 疊放: Z,X,Y
+    innerStack:[1,1,12],outerStack:[2,2,1],
+    // 每側增加 = 預設為產品原始尺寸 (inch) → 使用者可改
+    // 每層增加尺寸預設 = 產品原始尺寸 (代表每多疊1個完整增加一層)
+    // 若產品可相互嵌套 (如碗)，可手動減小此值
+    innerAddZ:lI, innerAddX:wI, innerAddY:hI,
+    outerAddZ:lI, outerAddX:wI, outerAddY:hI,
+    // 固定留邊 (每箱兩側各 0.125")，不對外開放修改
+    _innerGap:0.25, _outerGap:0.25,
+    // 緩衝材 - 內盒
+    ib_sep_td_qty:0, ib_sep_td_t:1,   // 隔板天地 qty / 厚(預設1cm)
+    ib_sep_lr_qty:0, ib_sep_lr_t:1,
+    ib_sep_fb_qty:0, ib_sep_fb_t:1,
+    ib_foam_td_qty:0,ib_foam_td_t:1,  // 保麗龍天地 qty / 厚(預設1cm)
+    ib_foam_lr_qty:0,ib_foam_lr_t:1,
+    ib_foam_fb_qty:0,ib_foam_fb_t:1,
+    ib_pe_qty:0, ib_sg_qty:0, ib_plybag_qty:0,   // 珍珠棉/單光紙/PLY BAG
+    // 緩衝材 - 外箱
+    ob_sep_td_qty:0, ob_sep_td_t:1,
+    ob_sep_lr_qty:0, ob_sep_lr_t:1,
+    ob_sep_fb_qty:0, ob_sep_fb_t:1,
+    ob_foam_td_qty:0,ob_foam_td_t:1,
+    ob_foam_lr_qty:0,ob_foam_lr_t:1,
+    ob_foam_fb_qty:0,ob_foam_fb_t:1,
+    ob_pe_qty:0, ob_sg_qty:0, ob_plybag_qty:0,
+    // 包裝費明細 (可手動改) - qty & unitPrice
+    pm:[
+      {n:'內盒 (紙箱)',   qty:null,up:null,manual:false},
+      {n:'外箱 (紙箱)',   qty:null,up:null,manual:false},
+      {n:'內盒緩衝材費',  qty:null,up:null,manual:false},
+      {n:'外箱緩衝材費',  qty:null,up:null,manual:false},
+      {n:'警語批號標',    qty:null,up:null,manual:false},
+      {n:'價標',         qty:null,up:null,manual:false},
+      {n:'內盒標',        qty:null,up:null,manual:false},
+      {n:'外箱標',        qty:null,up:null,manual:false},
+      {n:'包工',         qty:null,up:null,manual:false},
+    ],
+    innerBox:{},outerBox:{},
+    innerCapacity:12,outerCapacity:48,ctns:0,actualQty:0,
+    innerCost:0,outerCost:0,innerCushionCost:0,outerCushionCost:0,
+    packCostPerPcs:0,freightPerPcs:0,
+    cbmPerCarton:0,totalCbm:0,freightTotal:0,freightDetail:[],
+    _innerPerCarton:4,_ibVol:0,_obVol:0
+  };
+  items.push(it);
+  renderNav();renderBasic();
+}
+function removeItem(i){
+  if(items.length<=1){alert('至少需保留一個項目');return;}
+  items.splice(i,1);items.forEach((it,j)=>it.idx=j);
+  document.getElementById('item-panels').innerHTML='';
+  renderNav();renderBasic();items.forEach((_,j)=>ensurePanel(j));showPanel('basic');
+}
+
+// ── BASIC TABLE
+function renderBasic(){
+  const totalItems = items.length;
+  // Total inputs per row (for tab order): itemno, unit-select, l, w, h, weight = 6 inputs
+  // Tab order flows naturally left-to-right within each row, then to next row
+  document.getElementById('basic-items-body').innerHTML=items.map((it,i)=>{
+    const u=it.unit||'inch';
+    const lP=u==='inch'?it.lI:it.lCm, wP=u==='inch'?it.wI:it.wCm, hP=u==='inch'?it.hI:it.hCm;
+    const lAlt=u==='inch'?'→ '+(it.lI*CM).toFixed(3)+' cm':'→ '+(it.lCm/CM).toFixed(4)+'"';
+    const wAlt=u==='inch'?'→ '+(it.wI*CM).toFixed(3)+' cm':'→ '+(it.wCm/CM).toFixed(4)+'"';
+    const hAlt=u==='inch'?'→ '+(it.hI*CM).toFixed(3)+' cm':'→ '+(it.hCm/CM).toFixed(4)+'"';
+    // tabindex: row i, each col offset (so Tab moves L→R then next row)
+    const ti = n => i*10 + n + 100; // tabindex values
+    return `<tr id="brow-${i}">
+      <td style="color:var(--text3);font-family:var(--font-mono);text-align:center">${i+1}</td>
+      <td><input type="text" value="${it.itemno}" placeholder="料號" style="min-width:80px"
+        tabindex="${ti(1)}"
+        onchange="bUpd(${i},'itemno',this.value)"></td>
+      <td>
+        <select tabindex="${ti(2)}" onchange="bUnit(${i},this.value)">
+          <option value="inch" ${u==='inch'?'selected':''}>英吋 (inch)</option>
+          <option value="cm"   ${u==='cm'  ?'selected':''}>公分 (cm)</option>
+        </select>
+      </td>
+      <td>
+        <input type="text" inputmode="decimal" id="binp-${i}-l" value="${(+lP).toFixed(3)}" style="min-width:72px"
+          tabindex="${ti(3)}"
+          onchange="bDim(${i},'l',this.value)">
+        <div id="balt-${i}-l" style="font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--font-mono)">${lAlt}</div>
+      </td>
+      <td>
+        <input type="text" inputmode="decimal" id="binp-${i}-w" value="${(+wP).toFixed(3)}" style="min-width:72px"
+          tabindex="${ti(4)}"
+          onchange="bDim(${i},'w',this.value)">
+        <div id="balt-${i}-w" style="font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--font-mono)">${wAlt}</div>
+      </td>
+      <td>
+        <input type="text" inputmode="decimal" id="binp-${i}-h" value="${(+hP).toFixed(3)}" style="min-width:72px"
+          tabindex="${ti(5)}"
+          onchange="bDim(${i},'h',this.value)">
+        <div id="balt-${i}-h" style="font-size:10px;color:var(--text3);margin-top:2px;font-family:var(--font-mono)">${hAlt}</div>
+      </td>
+      <td><input type="number" value="${it.weight}" style="width:62px"
+        tabindex="${ti(6)}"
+        onchange="bUpd(${i},'weight',+this.value)"></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="showItemPanel(${i})" style="margin-right:3px" tabindex="-1">→ 詳細</button>
+        <button class="btn btn-ghost btn-sm" onclick="cloneItem(${i})" style="margin-right:3px;font-weight:700" tabindex="-1" title="複製此項目">+1</button>
+        <button class="btn btn-danger btn-sm" onclick="removeItem(${i})" tabindex="-1">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── 複製 ITEM（含完整設定）
+function cloneItem(i){
+  const src = items[i];
+  // Deep clone
+  const clone = JSON.parse(JSON.stringify(src));
+  clone.id = nid++;
+  clone.idx = items.length;
+  clone.itemno = src.itemno + '_copy';
+  // Reset calculated results
+  clone.innerBox={}; clone.outerBox={};
+  clone.ctns=0; clone.actualQty=0;
+  clone.freightDetail=[];
+  items.push(clone);
+  renderNav();
+  renderBasic();
+  // Build the panel for the clone
+  ensurePanel(items.length-1);
+  // Scroll to new row
+  const newRow = document.getElementById('brow-'+(items.length-1));
+  if(newRow) newRow.scrollIntoView({behavior:'smooth',block:'center'});
+  showToast('已複製 ITEM ' + (i+1) + ' → ITEM ' + items.length);
+  recalcAll();
+}
+function bUpd(i,f,v){
+  items[i][f]=v;
+  // Update nav label without full re-render
+  const navEl=document.getElementById('nav-item-'+i);
+  if(navEl){
+    navEl.querySelector('span:last-child').textContent=items[i].itemno||'(未命名)';
+  }
+  refreshItem(i);
+}
+function bUnit(i,u){
+  items[i].unit=u;
+  bUpdateDimDisplay(i);
+  calcItem(i); refreshItem(i);
+}
+
+// Update dim inputs + hint text without rebuilding the whole table
+function bUpdateDimDisplay(i){
+  const it=items[i];
+  const u=it.unit||'inch';
+  const lP=u==='inch'?it.lI:it.lCm, wP=u==='inch'?it.wI:it.wCm, hP=u==='inch'?it.hI:it.hCm;
+  const lAlt=u==='inch'?'→ '+(it.lI*CM).toFixed(3)+' cm':'→ '+(it.lCm/CM).toFixed(4)+'"';
+  const wAlt=u==='inch'?'→ '+(it.wI*CM).toFixed(3)+' cm':'→ '+(it.wCm/CM).toFixed(4)+'"';
+  const hAlt=u==='inch'?'→ '+(it.hI*CM).toFixed(3)+' cm':'→ '+(it.hCm/CM).toFixed(4)+'"';
+  // Update inputs (only if not focused to avoid cursor jump)
+  ['l','w','h'].forEach((ax,idx)=>{
+    const inp=document.getElementById('binp-'+i+'-'+ax);
+    const val=[lP,wP,hP][idx];
+    if(inp && document.activeElement!==inp) inp.value=(+val).toFixed(3);
+  });
+  // Always update hint divs
+  const ld=document.getElementById('balt-'+i+'-l'); if(ld) ld.textContent=lAlt;
+  const wd=document.getElementById('balt-'+i+'-w'); if(wd) wd.textContent=wAlt;
+  const hd=document.getElementById('balt-'+i+'-h'); if(hd) hd.textContent=hAlt;
+}
+function bDim(i,ax,v){
+  const val=parseFloat(v); if(isNaN(val))return;
+  const u=items[i].unit||'inch';
+  if(u==='inch'){
+    if(ax==='l'){items[i].lI=val;items[i].lCm=val*CM;}
+    if(ax==='w'){items[i].wI=val;items[i].wCm=val*CM;}
+    if(ax==='h'){items[i].hI=val;items[i].hCm=val*CM;}
+  }else{
+    if(ax==='l'){items[i].lCm=val;items[i].lI=val/CM;}
+    if(ax==='w'){items[i].wCm=val;items[i].wI=val/CM;}
+    if(ax==='h'){items[i].hCm=val;items[i].hI=val/CM;}
+  }
+  // 若未手動覆蓋，同步內盒增加量至最新產品尺寸
+  const it=items[i];
+  if(!it._innerAddOverride){
+    it.innerAddZ=it.lI; it.innerAddX=it.wI; it.innerAddY=it.hI;
+  }
+  // Update hint text in-place — NO renderBasic(), DOM stays intact
+  bUpdateDimDisplay(i);
+  calcItem(i); refreshItem(i);
+}
+
+// ── ENSURE / BUILD ITEM PANEL
+function ensurePanel(i){
+  let div=document.getElementById('panel-item-'+i);
+  if(!div){div=document.createElement('div');div.className='panel';div.id='panel-item-'+i;document.getElementById('item-panels').appendChild(div);}
+  div.innerHTML=buildItemHTML(i);calcItem(i);refreshItem(i);
+}
+function buildItemHTML(i){
+  const it=items[i];
+  // cushion section builder
+  function cushRow(box,side,label,qField,tField,lField,wField){
+    // lField, wField = auto-computed dimension field ids
+    return `<tr>
+      <td style="color:var(--text2)">${label}</td>
+      <td class="dim-auto" id="${box}-${side}-L">–</td>
+      <td class="dim-auto" id="${box}-${side}-W">–</td>
+      <td>
+        <input type="number" step="0.01" value="${it[tField]}" style="width:60px"
+          oninput="iCushT(${i},'${tField}',+this.value)">
+      </td>
+      <td class="dim-auto" id="${box}-${side}-up">–</td>
+      <td><input type="number" min="0" value="${it[qField]}" style="width:50px"
+          oninput="iCushQ(${i},'${qField}',+this.value)"></td>
+      <td class="rnum" id="${box}-${side}-sub">–</td>
+    </tr>`;
+  }
+  return `
+  <div class="item-header">
+    <div>
+      <div class="item-title">ITEM NO.${i+1} <span style="color:var(--accent2)">${it.itemno||''}</span></div>
+      <div style="color:var(--text3);font-size:11.5px">${it.lI.toFixed(3)}" × ${it.wI.toFixed(3)}" × ${it.hI.toFixed(3)}" &nbsp;|&nbsp; ${(it.lI*CM).toFixed(2)}×${(it.wI*CM).toFixed(2)}×${(it.hI*CM).toFixed(2)} cm &nbsp;|&nbsp; ${it.weight}g</div>
+    </div>
+    <div class="item-actions no-print">
+      <span class="item-badge" id="i${i}-badge">–</span>
+      <button class="btn btn-ghost btn-sm" onclick="showPanel('basic')">← 回產品列表</button>
+      <button class="btn btn-print btn-sm" onclick="printItem(${i})">🖨 列印/PDF</button>
+      <button class="btn btn-danger btn-sm" onclick="removeItem(${i})">✕ 刪除</button>
+    </div>
+  </div>
+
+  <!-- RESULTS BAR: 4 stats only -->
+  <div class="results-bar">
+    <div class="result-stat">
+      <div class="lbl">包裝費 / PCS</div>
+      <div class="val" id="i${i}-rPack">–</div>
+    </div>
+    <div class="result-stat">
+      <div class="lbl">運費 / PCS</div>
+      <div class="val" id="i${i}-rFreight">–</div>
+    </div>
+    <div class="result-stat">
+      <div class="lbl">單箱材積</div>
+      <div class="val secondary" id="i${i}-rCbm">–</div>
+      <div class="val2" id="i${i}-rCuft">–</div>
+    </div>
+    <div class="result-stat">
+      <div class="lbl">整批材積</div>
+      <div class="val secondary" id="i${i}-rTotalCbm">–</div>
+      <div class="val2" id="i${i}-rTotalCuft">–</div>
+    </div>
+  </div>
+
+  <!-- 運送方式 -->
+  <div class="card">
+    <div class="card-title">運送方式與數量</div>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;flex-wrap:wrap">
+      <div class="shpterm-tabs" style="margin-bottom:0">
+        <button class="shpterm-tab ${it.shpTerm==='CFS' ?'active':''}" onclick="setST(${i},'CFS',this)">CFS 散貨</button>
+        <button class="shpterm-tab ${it.shpTerm==='CY20'?'active':''}" onclick="setST(${i},'CY20',this)">CY 20'</button>
+        <button class="shpterm-tab ${it.shpTerm==='CY40'?'active':''}" onclick="setST(${i},'CY40',this)">CY 40'</button>
+      </div>
+      <div class="field" style="min-width:160px">
+        <label>交易條件 QUO_TERM</label>
+        <select id="i${i}-quoTerm" onchange="iUpd(${i},'quoTerm',this.value)">
+          <option value="FOB" ${it.quoTerm==='FOB'?'selected':''}>FOB</option>
+          <option value="CIF" ${it.quoTerm==='CIF'?'selected':''}>CIF（含海運費）</option>
+          <option value="FOR" ${it.quoTerm==='FOR'?'selected':''}>FOR（不含運費）</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid fg4">
+      <div class="field">
+        <label>估價數量 (PCS)</label>
+        <input type="number" value="${it.qty}" oninput="iUpd(${i},'qty',+this.value)">
+      </div>
+      <div class="field">
+        <label>成箱數量 (CTN)</label>
+        <input type="number" class="result-val" readonly id="i${i}-ctns" value="${it.ctns}">
+        <span class="sub-label">= ⌈估價量 ÷ PCS/CTN⌉</span>
+      </div>
+      <div class="field">
+        <label>實際出貨 (PCS)</label>
+        <input type="number" class="result-val" readonly id="i${i}-actualQty" value="${it.actualQty}">
+        <span class="sub-label">= 箱數 × PCS/CTN</span>
+      </div>
+      <div class="field">
+        <label>出貨組合 (ITEM數)</label>
+        <input type="number" id="i${i}-combo" value="${it.combo||1}" min="1" oninput="iUpd(${i},'combo',+this.value)">
+        <span class="sub-label">多ITEM同批均攤運費</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 疊放設定 -->
+  <div class="card">
+    <div class="card-title">疊放設定</div>
+    <!-- 成箱摘要 (auto-updated) -->
+    <div id="i${i}-boxsummary" style="background:var(--surface3);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px">
+      <div><span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.8px">內盒 (cm)</span><br>
+        <span style="font-family:var(--font-mono);color:var(--accent2)" id="i${i}-ibox-dim">–</span>
+        <span style="color:var(--text3);font-size:10px;margin-left:6px" id="i${i}-ibox-cap">–</span></div>
+      <div><span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.8px">外箱 (cm)</span><br>
+        <span style="font-family:var(--font-mono);color:var(--accent2)" id="i${i}-obox-dim">–</span>
+        <span style="color:var(--text3);font-size:10px;margin-left:6px" id="i${i}-obox-cap" data-quounit="">–</span></div>
+      <div><span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.8px">外箱毛重</span><br>
+        <span style="font-family:var(--font-mono);color:var(--accent2)" id="i${i}-obox-gw">–</span></div>
+      <div><span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:.8px">CBM / CTN</span><br>
+        <span style="font-family:var(--font-mono);color:var(--accent2)" id="i${i}-obox-cbm">–</span></div>
+    </div>
+    <table class="data-table" style="margin-bottom:14px">
+      <thead>
+        <tr>
+          <th style="width:110px"></th>
+          <th>Z向(長)</th><th>X向(寬)</th><th>Y向(高)</th>
+          <th>PCS/箱</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--text2);font-weight:500">內盒疊法<br><span style="font-size:10px;color:var(--text3)">產品在內盒中</span></td>
+          <td><input type="number" min="1" value="${it.innerStack[0]}" style="width:55px" oninput="iStack(${i},'inner',0,+this.value)"></td>
+          <td><input type="number" min="1" value="${it.innerStack[1]}" style="width:55px" oninput="iStack(${i},'inner',1,+this.value)"></td>
+          <td><input type="number" min="1" value="${it.innerStack[2]}" style="width:55px" oninput="iStack(${i},'inner',2,+this.value)"></td>
+          <td style="font-family:var(--font-mono);color:var(--accent2)"><span id="i${i}-innerCap">–</span> PCS/盒</td>
+        </tr>
+        <tr>
+          <td style="color:var(--text2);font-weight:500">外箱疊法<br><span style="font-size:10px;color:var(--text3)">內盒在外箱中</span></td>
+          <td><input type="number" min="1" value="${it.outerStack[0]}" style="width:55px" oninput="iStack(${i},'outer',0,+this.value)"></td>
+          <td><input type="number" min="1" value="${it.outerStack[1]}" style="width:55px" oninput="iStack(${i},'outer',1,+this.value)"></td>
+          <td><input type="number" min="1" value="${it.outerStack[2]}" style="width:55px" oninput="iStack(${i},'outer',2,+this.value)"></td>
+          <td style="font-family:var(--font-mono);color:var(--accent2)"><span id="i${i}-outerCap">–</span> PCS/箱</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="section-label">內盒每多疊1個的增加尺寸 (inch)</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;padding:6px 10px;background:var(--surface3);border-radius:4px;line-height:1.6">
+      💡 預設 = 產品原始尺寸（完整層疊，不重疊）。若產品可嵌套（如碗疊碗），可縮小對應方向的值。<br>
+      外箱的增加量由內盒尺寸自動計算（唯讀）。
+    </div>
+    <table class="data-table">
+      <thead><tr>
+        <th style="width:110px"></th>
+        <th>長向 Z (inch)</th>
+        <th>寬向 X (inch)</th>
+        <th>高向 Y (inch)</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--text2)">內盒<br><span style="font-size:10px;color:var(--text3)">每多疊1個增加</span></td>
+          <td><input type="text" inputmode="decimal" id="i${i}-innerAddZ"
+            value="${it.innerAddZ.toFixed(3)}" style="width:80px"
+            onchange="iAdd(${i},'inner','Z',this.value)">
+            <div style="font-size:10px;color:var(--text3)">
+              ×${it.innerStack[0]-1} 層 = ${((it.innerStack[0]-1)*it.innerAddZ).toFixed(3)}"
+            </div>
+          </td>
+          <td><input type="text" inputmode="decimal" id="i${i}-innerAddX"
+            value="${it.innerAddX.toFixed(3)}" style="width:80px"
+            onchange="iAdd(${i},'inner','X',this.value)">
+            <div style="font-size:10px;color:var(--text3)">
+              ×${it.innerStack[1]-1} 層 = ${((it.innerStack[1]-1)*it.innerAddX).toFixed(3)}"
+            </div>
+          </td>
+          <td><input type="text" inputmode="decimal" id="i${i}-innerAddY"
+            value="${it.innerAddY.toFixed(3)}" style="width:80px"
+            onchange="iAdd(${i},'inner','Y',this.value)">
+            <div style="font-size:10px;color:var(--text3)">
+              ×${it.innerStack[2]-1} 層 = ${((it.innerStack[2]-1)*it.innerAddY).toFixed(3)}"
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="color:var(--text2)">外箱<br><span style="font-size:10px;color:var(--text3)">自動=內盒尺寸</span></td>
+          <td>
+            <input type="text" class="auto-val" readonly id="i${i}-outerAddZ" value="${it.outerAddZ.toFixed(3)}" style="width:80px">
+            <div style="font-size:10px;color:var(--text3)">×${it.outerStack[0]-1} 箱 = ${((it.outerStack[0]-1)*it.outerAddZ).toFixed(3)}"</div>
+          </td>
+          <td>
+            <input type="text" class="auto-val" readonly id="i${i}-outerAddX" value="${it.outerAddX.toFixed(3)}" style="width:80px">
+            <div style="font-size:10px;color:var(--text3)">×${it.outerStack[1]-1} 箱 = ${((it.outerStack[1]-1)*it.outerAddX).toFixed(3)}"</div>
+          </td>
+          <td>
+            <input type="text" class="auto-val" readonly id="i${i}-outerAddY" value="${it.outerAddY.toFixed(3)}" style="width:80px">
+            <div style="font-size:10px;color:var(--text3)">×${it.outerStack[2]-1} 箱 = ${((it.outerStack[2]-1)*it.outerAddY).toFixed(3)}"</div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 計算紙箱尺寸 -->
+  <div class="card">
+    <div class="card-title">計算紙箱尺寸（自動）</div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:60px">紙箱</th>
+          <th>長 Z <small style="font-weight:400;color:var(--text3)">(cm)</small></th>
+          <th>寬 X <small style="font-weight:400;color:var(--text3)">(cm)</small></th>
+          <th>高 Y <small style="font-weight:400;color:var(--text3)">(cm)</small></th>
+          <th style="color:var(--text3);font-size:10px">長 (inch)</th>
+          <th style="color:var(--text3);font-size:10px">寬 (inch)</th>
+          <th style="color:var(--text3);font-size:10px">高 (inch)</th>
+          <th style="color:var(--text3);font-size:10px">台分材積</th>
+          <th>紙板成本</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--text2);font-weight:500">內盒</td>
+          <td class="num" id="i${i}-ibLCm">–</td>
+          <td class="num" id="i${i}-ibWCm">–</td>
+          <td class="num" id="i${i}-ibHCm">–</td>
+          <td class="num" style="color:var(--text3);font-size:11px" id="i${i}-ibLI">–</td>
+          <td class="num" style="color:var(--text3);font-size:11px" id="i${i}-ibWI">–</td>
+          <td class="num" style="color:var(--text3);font-size:11px" id="i${i}-ibHI">–</td>
+          <td class="num" style="color:var(--text3);font-size:11px" id="i${i}-ibFen">–</td>
+          <td class="rnum" id="i${i}-ibCost">–</td>
+        </tr>
+        <tr>
+          <td style="color:var(--text2);font-weight:500">外箱</td>
+          <td class="num" id="i${i}-obLCm">–</td>
+          <td class="num" id="i${i}-obWCm">–</td>
+          <td class="num" id="i${i}-obHCm">–</td>
+          <td class="num" style="color:var(--text3);font-size:11px" id="i${i}-obLI">–</td>
+          <td class="num" style="color:var(--text3);font-size:11px" id="i${i}-obWI">–</td>
+          <td class="num" style="color:var(--text3);font-size:11px" id="i${i}-obHI">–</td>
+          <td class="num" style="color:var(--text3);font-size:11px" id="i${i}-obFen">–</td>
+          <td class="rnum" id="i${i}-obCost">–</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 緩衝材 / 安全包裝 -->
+  <div class="card">
+    <div class="card-title">緩衝材 / 安全包裝成本</div>
+
+    <div class="section-label">內盒緩衝材</div>
+    <table class="data-table" style="margin-bottom:12px">
+      <thead><tr><th>材料</th><th>長(cm)自動</th><th>寬(cm)自動</th><th>厚(inch/cm)</th><th>單價(自動)</th><th>數量</th><th>小計(NT$)</th></tr></thead>
+      <tbody>
+        <tr><td colspan="7" style="color:var(--text3);font-size:11px;padding:4px 9px">▸ 隔板 (3元/台分³ × 0.16 × 5)</td></tr>
+        ${cushRow('ib','sep-td','天地','ib_sep_td_qty','ib_sep_td_t')}
+        ${cushRow('ib','sep-lr','左右','ib_sep_lr_qty','ib_sep_lr_t')}
+        ${cushRow('ib','sep-fb','前後','ib_sep_fb_qty','ib_sep_fb_t')}
+        <tr><td colspan="7" style="color:var(--text3);font-size:11px;padding:4px 9px">▸ 保麗龍 (360元/m³ × 5)</td></tr>
+        ${cushRow('ib','foam-td','天地','ib_foam_td_qty','ib_foam_td_t')}
+        ${cushRow('ib','foam-lr','左右','ib_foam_lr_qty','ib_foam_lr_t')}
+        ${cushRow('ib','foam-fb','前後','ib_foam_fb_qty','ib_foam_fb_t')}
+        <tr>
+          <td style="color:var(--text2)">珍珠棉 (0.002元/cm²·0.4cm)</td>
+          <td class="dim-auto" id="ib-pe-L">–</td><td class="dim-auto" id="ib-pe-W">–</td>
+          <td style="color:var(--text3);font-size:11px">t=0.4cm</td>
+          <td class="dim-auto">0.002</td>
+          <td><input type="number" min="0" value="${it.ib_pe_qty}" style="width:50px" oninput="iCushQ(${i},'ib_pe_qty',+this.value)"></td>
+          <td class="rnum" id="ib-pe-sub">–</td>
+        </tr>
+        <tr>
+          <td style="color:var(--text2)">單光紙 (0.00045元/cm²)</td>
+          <td class="dim-auto" id="ib-sg-L">–</td><td class="dim-auto" id="ib-sg-W">–</td>
+          <td style="color:var(--text3);font-size:11px">t=0.01cm</td>
+          <td class="dim-auto">0.00045</td>
+          <td><input type="number" min="0" value="${it.ib_sg_qty}" style="width:50px" oninput="iCushQ(${i},'ib_sg_qty',+this.value)"></td>
+          <td class="rnum" id="ib-sg-sub">–</td>
+        </tr>
+        <tr>
+          <td style="color:var(--text2)">PLY BAG (0.5元/個)</td>
+          <td colspan="4"></td>
+          <td><input type="number" min="0" value="${it.ib_plybag_qty}" style="width:50px" oninput="iCushQ(${i},'ib_plybag_qty',+this.value)"></td>
+          <td class="rnum" id="ib-plybag-sub">–</td>
+        </tr>
+        <tr style="background:var(--surface2)">
+          <td colspan="6" style="color:var(--text2);font-weight:600">內盒緩衝材合計</td>
+          <td class="rnum" id="i${i}-ibCushTotal">–</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="section-label">外箱緩衝材</div>
+    <table class="data-table">
+      <thead><tr><th>材料</th><th>長(inch)自動</th><th>寬(inch)自動</th><th>厚(inch)</th><th>單價(自動)</th><th>數量</th><th>小計(NT$)</th></tr></thead>
+      <tbody>
+        <tr><td colspan="7" style="color:var(--text3);font-size:11px;padding:4px 9px">▸ 隔板 (3元/台分³ × 0.16 × 5)</td></tr>
+        ${cushRow('ob','sep-td','天地','ob_sep_td_qty','ob_sep_td_t')}
+        ${cushRow('ob','sep-lr','左右','ob_sep_lr_qty','ob_sep_lr_t')}
+        ${cushRow('ob','sep-fb','前後','ob_sep_fb_qty','ob_sep_fb_t')}
+        <tr><td colspan="7" style="color:var(--text3);font-size:11px;padding:4px 9px">▸ 保麗龍 (318元/m³ × 5)</td></tr>
+        ${cushRow('ob','foam-td','天地','ob_foam_td_qty','ob_foam_td_t')}
+        ${cushRow('ob','foam-lr','左右','ob_foam_lr_qty','ob_foam_lr_t')}
+        ${cushRow('ob','foam-fb','前後','ob_foam_fb_qty','ob_foam_fb_t')}
+        <tr>
+          <td style="color:var(--text2)">珍珠棉 (0.002元/cm²·0.4cm)</td>
+          <td class="dim-auto" id="ob-pe-L">–</td><td class="dim-auto" id="ob-pe-W">–</td>
+          <td style="color:var(--text3);font-size:11px">t=0.4cm</td>
+          <td class="dim-auto">0.002</td>
+          <td><input type="number" min="0" value="${it.ob_pe_qty}" style="width:50px" oninput="iCushQ(${i},'ob_pe_qty',+this.value)"></td>
+          <td class="rnum" id="ob-pe-sub">–</td>
+        </tr>
+        <tr>
+          <td style="color:var(--text2)">單光紙 (0.00045元/cm²)</td>
+          <td class="dim-auto" id="ob-sg-L">–</td><td class="dim-auto" id="ob-sg-W">–</td>
+          <td style="color:var(--text3);font-size:11px">t=0.01cm</td>
+          <td class="dim-auto">0.00045</td>
+          <td><input type="number" min="0" value="${it.ob_sg_qty}" style="width:50px" oninput="iCushQ(${i},'ob_sg_qty',+this.value)"></td>
+          <td class="rnum" id="ob-sg-sub">–</td>
+        </tr>
+        <tr>
+          <td style="color:var(--text2)">PLY BAG (0.5元/個)</td>
+          <td colspan="4"></td>
+          <td><input type="number" min="0" value="${it.ob_plybag_qty}" style="width:50px" oninput="iCushQ(${i},'ob_plybag_qty',+this.value)"></td>
+          <td class="rnum" id="ob-plybag-sub">–</td>
+        </tr>
+        <tr style="background:var(--surface2)">
+          <td colspan="6" style="color:var(--text2);font-weight:600">外箱緩衝材合計</td>
+          <td class="rnum" id="i${i}-obCushTotal">–</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 包裝費明細 (可手動修改) -->
+  <div class="card">
+    <div class="card-title">包裝費明細 <span style="font-size:10px;font-weight:400;color:var(--text3)">（用數/單價可手動覆蓋，留空=使用自動計算值）</span></div>
+    <table class="data-table" style="max-width:680px">
+      <thead><tr><th>項目</th><th style="text-align:right;width:90px">用數/CTN</th><th style="text-align:right;width:90px">單價(NT$)</th><th style="text-align:right;width:90px">小計/CTN</th><th style="text-align:right;width:80px">分攤/PCS</th></tr></thead>
+      <tbody id="i${i}-packDetail"></tbody>
+      <tfoot><tr><td colspan="4" style="color:var(--text2);font-weight:600">包裝費合計 / PCS</td><td class="rnum" id="i${i}-packTotal">–</td></tr></tfoot>
+    </table>
+  </div>
+
+  <!-- 運費明細 -->
+  <div class="card">
+    <div class="card-title">運雜費明細 <span id="i${i}-freightTitle" style="font-weight:400;color:var(--text3);font-size:11px"></span></div>
+    <table class="data-table" style="max-width:600px">
+      <thead><tr><th>項目</th><th style="text-align:right">金額 (NT$)</th><th>備註</th></tr></thead>
+      <tbody id="i${i}-freightDetail"></tbody>
+      <tfoot><tr><td style="color:var(--text2);font-weight:600">運費合計 / PCS</td><td class="rnum" id="i${i}-freightTotal">–</td><td></td></tr></tfoot>
+    </table>
+  </div>`;
+}
+
+// ── ITEM UPDATE HANDLERS
+function iUpd(i,f,v){items[i][f]=v;calcItem(i);refreshItem(i);}
+function iStack(i,box,ax,v){items[i][box+'Stack'][ax]=Math.max(1,v||1);calcItem(i);refreshItem(i);}
+function iAdd(i,box,ax,v){
+  const val=parseFloat(v);if(isNaN(val))return;
+  items[i][box+'Add'+ax]=val;
+  if(box==='inner') items[i]._innerAddOverride=true; // 使用者手動覆蓋，不再連動
+  calcItem(i);refreshItem(i);
+}
+function iCushQ(i,f,v){items[i][f]=v;calcItem(i);refreshItem(i);}
+function iCushT(i,f,v){items[i][f]=v;calcItem(i);refreshItem(i);}
+function setST(i,t,btn){
+  items[i].shpTerm=t;
+  btn.closest('.card').querySelectorAll('.shpterm-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');calcItem(i);refreshItem(i);
+}
+// Pack detail manual override
+function pmQty(i,row,v){
+  if(v==='')items[i].pm[row].qty=null; else items[i].pm[row].qty=+v;
+  calcItem(i);refreshItem(i);
+}
+function pmUp(i,row,v){
+  if(v==='')items[i].pm[row].up=null; else items[i].pm[row].up=+v;
+  calcItem(i);refreshItem(i);
+}
+
+// ── CALC
+function calcItem(i){
+  const it=items[i];
+  try {
+  it.lCm=it.lI*CM;it.wCm=it.wI*CM;it.hCm=it.hI*CM;
+
+  // 內盒尺寸公式 (對應 Excel C27+C35):
+  //   C27 = C11 + (C15-1)*C13   → 第1個用產品尺寸，之後每多1個加「每層增加量」
+  //   C35 = C27 + 緩衝材厚 + 固定留邊(1/8"×2 = 0.25")
+  // innerAddZ/X/Y = C13 = 每層增加量（預設=產品尺寸，可縮小表示嵌套）
+  // _innerGap = 固定留邊 0.25" (兩側)
+  const [iZ,iX,iY]=it.innerStack;
+  const gap = it._innerGap !== undefined ? it._innerGap : 0.25;
+  const ibLI = it.lI + (iZ-1)*it.innerAddZ + gap;
+  const ibWI = it.wI + (iX-1)*it.innerAddX + gap;
+  const ibHI = it.hI + (iY-1)*it.innerAddY + gap;
+  it.innerBox={lI:ibLI,wI:ibWI,hI:ibHI,lCm:ibLI*CM,wCm:ibWI*CM,hCm:ibHI*CM};
+  it.innerCapacity=iZ*iX*iY;
+
+  // 外箱尺寸: IF(G4=1, 直接疊放產品, 疊放內盒)
+  // 對應 Excel C48: ob = ob_content + 4/8 + (1/8*stack) + cushion*2 + (stack-1)*0.125
+  // 簡化：ob = ib_or_prod + (stack-1)*ib_or_prod + fixed_gap(0.25")
+  // outerAdd 自動 = 內盒尺寸（有內盒）或產品尺寸（無內盒），不開放手動輸入
+  const [oZ,oX,oY]=it.outerStack;
+  const ogap = 0.25; // Excel: 4/8 fixed gap ÷ 2 sides ≈ 0.25" per side
+  const g4Chk = it.innerStack[0]*it.innerStack[1]*it.innerStack[2];
+  let obLI, obWI, obHI;
+  if(g4Chk === 1){
+    // 無內盒：外箱直接疊放產品
+    // outerAdd 自動 = 產品尺寸
+    it.outerAddZ=it.lI; it.outerAddX=it.wI; it.outerAddY=it.hI;
+    obLI = it.lI + (oZ-1)*it.lI + ogap;
+    obWI = it.wI + (oX-1)*it.wI + ogap;
+    obHI = it.hI + (oY-1)*it.hI + ogap;
+  } else {
+    // 有內盒：外箱疊放內盒，outerAdd 自動 = 內盒尺寸
+    it.outerAddZ=ibLI; it.outerAddX=ibWI; it.outerAddY=ibHI;
+    obLI = ibLI + (oZ-1)*ibLI + ogap;
+    obWI = ibWI + (oX-1)*ibWI + ogap;
+    obHI = ibHI + (oY-1)*ibHI + ogap;
+  }
+  it.outerBox={lI:obLI,wI:obWI,hI:obHI,lCm:obLI*CM,wCm:obWI*CM,hCm:obHI*CM};
+  const innerPerCtn=oZ*oX*oY;
+  it.outerCapacity=it.innerCapacity*innerPerCtn;
+  it._innerPerCarton=innerPerCtn;
+
+  // 台分材積 & 紙板成本 (Excel: N37 = L37*2.6 + max(0,3.5-L37))
+  // L37 = ((W_fen+H_fen+1)/100)*((L_fen+W_fen)*2+10)/100
+  function boxCost(lCm,wCm,hCm){
+    const L=lCm*FEN, W=wCm*FEN, H=hCm*FEN;
+    const vol=L*W*H/1000;
+    const L37=((W+H+1)/100)*((L+W)*2+10)/100;
+    const cost=L37*2.6+Math.max(0,3.5-L37);
+    return {vol,cost};
+  }
+  const ib=boxCost(it.innerBox.lCm,it.innerBox.wCm,it.innerBox.hCm);
+  const ob=boxCost(it.outerBox.lCm,it.outerBox.wCm,it.outerBox.hCm);
+  const _g4early = it.innerStack[0]*it.innerStack[1]*it.innerStack[2];
+  it._ibVol = _g4early===1 ? 0 : ib.vol;
+  it.innerCost = _g4early===1 ? 0 : ib.cost;
+  it._obVol=ob.vol; it.outerCost=ob.cost;
+
+  // Cushion costs
+  // Inner box dims for cushion
+  const ibL=it.innerBox.lCm, ibW=it.innerBox.wCm, ibH=it.innerBox.hCm;
+  const obL=it.outerBox.lCm, obW=it.outerBox.wCm, obH=it.outerBox.hCm;
+  // Product content dims (inner content = iZ*lI etc in cm)
+  const prodLcm=iZ*it.lI*CM, prodWcm=iX*it.wI*CM, prodHcm=iY*it.hI*CM;
+
+  // Separator cost: (L×W)×t_inch×(3/1000×0.16×5) per Excel: L26=((H26*I26)*K26/1000*0.16)*5
+  // K26=3, H26=L cm, I26=W cm, J26=t_inch thickness
+  function sepCost(Lcm,Wcm,t_inch){
+    return (Lcm*Wcm)*3/1000*0.16*5; // t_inch not in formula? Excel uses area*price
+    // Actually checking: L26 = (H26*I26)*K26/1000*0.16*5, K26=3 (price/台分³ roughly)
+    // Simplified: area(cm²) × 3 / 1000 × 0.16 × 5
+  }
+  // Foam cost inner: L30 = H30*I30*J30*360/648000*5 (cm*cm*cm*density/648000*5)
+  function foamCostInner(Lcm,Wcm,tcm){
+    return Lcm*Wcm*tcm*360/648000*5;
+  }
+  // Foam cost outer: L44=H44*I44*J44*318/648000*5 (J44 in inch, convert: cm)
+  function foamCostOuter(Lcm,Wcm,tcm){
+    return Lcm*Wcm*tcm*318/648000*5;
+  }
+
+  // Inner cushion dims (same as inner box interior = product content area)
+  const ibSepTd_L=ibL, ibSepTd_W=ibW;
+  const ibSepLr_L=ibW, ibSepLr_W=ibH;
+  const ibSepFb_L=ibL, ibSepFb_W=ibH;
+  const ibFoamTd_L=ibL, ibFoamTd_W=ibW;
+  const ibFoamLr_L=ibW, ibFoamLr_W=ibH;
+  const ibFoamFb_L=ibL, ibFoamFb_W=ibH;
+  const ibPe_L=ibL, ibPe_W=ibW;
+  const ibSg_L=ibL, ibSg_W=ibW;
+
+  // Outer cushion uses outer box dims (outer content = inner box * stacks)
+  const obSepTd_L=obL, obSepTd_W=obW;
+  const obSepLr_L=obL, obSepLr_W=obH;
+  const obSepFb_L=obW, obSepFb_W=obH;
+  const obFoamTd_L=obL, obFoamTd_W=obW;
+  const obFoamLr_L=obL, obFoamLr_W=obH;
+  const obFoamFb_L=obW, obFoamFb_W=obH;
+
+  // Calc individual cushion costs
+  const ibSepTdUp=sepCost(ibSepTd_L,ibSepTd_W,it.ib_sep_td_t);
+  const ibSepLrUp=sepCost(ibSepLr_L,ibSepLr_W,it.ib_sep_lr_t);
+  const ibSepFbUp=sepCost(ibSepFb_L,ibSepFb_W,it.ib_sep_fb_t);
+  const ibFoamTdUp=foamCostInner(ibFoamTd_L,ibFoamTd_W,it.ib_foam_td_t);
+  const ibFoamLrUp=foamCostInner(ibFoamLr_L,ibFoamLr_W,it.ib_foam_lr_t);
+  const ibFoamFbUp=foamCostInner(ibFoamFb_L,ibFoamFb_W,it.ib_foam_fb_t);
+  const ibPeUp=ibPe_L*ibPe_W*0.002;
+  const ibSgUp=ibSg_L*ibSg_W*0.00045;
+
+  const obSepTdUp=sepCost(obSepTd_L,obSepTd_W,it.ob_sep_td_t);
+  const obSepLrUp=sepCost(obSepLr_L,obSepLr_W,it.ob_sep_lr_t);
+  const obSepFbUp=sepCost(obSepFb_L,obSepFb_W,it.ob_sep_fb_t);
+  const obFoamTdUp=foamCostOuter(obFoamTd_L,obFoamTd_W,it.ob_foam_td_t*CM);
+  const obFoamLrUp=foamCostOuter(obFoamLr_L,obFoamLr_W,it.ob_foam_lr_t*CM);
+  const obFoamFbUp=foamCostOuter(obFoamFb_L,obFoamFb_W,it.ob_foam_fb_t*CM);
+  const obPeUp=obFoamTd_L*obFoamTd_W*0.002;
+  const obSgUp=obFoamTd_L*obFoamTd_W*0.00045;
+
+  it._cush={
+    ibSepTd:{L:ibSepTd_L,W:ibSepTd_W,up:ibSepTdUp,sub:ibSepTdUp*it.ib_sep_td_qty},
+    ibSepLr:{L:ibSepLr_L,W:ibSepLr_W,up:ibSepLrUp,sub:ibSepLrUp*it.ib_sep_lr_qty},
+    ibSepFb:{L:ibSepFb_L,W:ibSepFb_W,up:ibSepFbUp,sub:ibSepFbUp*it.ib_sep_fb_qty},
+    ibFoamTd:{L:ibFoamTd_L,W:ibFoamTd_W,up:ibFoamTdUp,sub:ibFoamTdUp*it.ib_foam_td_qty},
+    ibFoamLr:{L:ibFoamLr_L,W:ibFoamLr_W,up:ibFoamLrUp,sub:ibFoamLrUp*it.ib_foam_lr_qty},
+    ibFoamFb:{L:ibFoamFb_L,W:ibFoamFb_W,up:ibFoamFbUp,sub:ibFoamFbUp*it.ib_foam_fb_qty},
+    ibPe:{L:ibPe_L,W:ibPe_W,up:ibPeUp,sub:ibPeUp*it.ib_pe_qty},
+    ibSg:{L:ibSg_L,W:ibSg_W,up:ibSgUp,sub:ibSgUp*it.ib_sg_qty},
+    ibPlybag:{sub:0.5*it.ib_plybag_qty},
+    obSepTd:{L:obSepTd_L,W:obSepTd_W,up:obSepTdUp,sub:obSepTdUp*it.ob_sep_td_qty},
+    obSepLr:{L:obSepLr_L,W:obSepLr_W,up:obSepLrUp,sub:obSepLrUp*it.ob_sep_lr_qty},
+    obSepFb:{L:obSepFb_L,W:obSepFb_W,up:obSepFbUp,sub:obSepFbUp*it.ob_sep_fb_qty},
+    obFoamTd:{L:obFoamTd_L,W:obFoamTd_W,up:obFoamTdUp,sub:obFoamTdUp*it.ob_foam_td_qty},
+    obFoamLr:{L:obFoamLr_L,W:obFoamLr_W,up:obFoamLrUp,sub:obFoamLrUp*it.ob_foam_lr_qty},
+    obFoamFb:{L:obFoamFb_L,W:obFoamFb_W,up:obFoamFbUp,sub:obFoamFbUp*it.ob_foam_fb_qty},
+    obPe:{L:obFoamTd_L,W:obFoamTd_W,up:obPeUp,sub:obPeUp*it.ob_pe_qty},
+    obSg:{L:obFoamTd_L,W:obFoamTd_W,up:obSgUp,sub:obSgUp*it.ob_sg_qty},
+    obPlybag:{sub:0.5*it.ob_plybag_qty},
+  };
+  const _g4 = it.innerStack[0]*it.innerStack[1]*it.innerStack[2];
+  it.innerCushionCost = _g4===1 ? 0 :
+    (it._cush.ibSepTd.sub+it._cush.ibSepLr.sub+it._cush.ibSepFb.sub
+    +it._cush.ibFoamTd.sub+it._cush.ibFoamLr.sub+it._cush.ibFoamFb.sub
+    +it._cush.ibPe.sub+it._cush.ibSg.sub+it._cush.ibPlybag.sub);
+  it.outerCushionCost=it._cush.obSepTd.sub+it._cush.obSepLr.sub+it._cush.obSepFb.sub
+    +it._cush.obFoamTd.sub+it._cush.obFoamLr.sub+it._cush.obFoamFb.sub
+    +it._cush.obPe.sub+it._cush.obSg.sub+it._cush.obPlybag.sub;
+
+  // 成箱 & 實際數量
+  it.ctns=Math.ceil(it.qty/it.outerCapacity);
+  it.actualQty=it.ctns*it.outerCapacity;
+
+  // 包裝費/CTN (auto values for pm rows)
+  const quoUnit=document.getElementById('b-quounit')?.value||'PCS';
+  const li=(+(document.getElementById('b-labeltype').value)||4)-1;
+  const wP=lp('warn',li), prP=lp('price',li), inP=lp('inner',li), ouP=lp('outer',li);
+  // G4 = innerStack product; if G4=1 (1×1×1) → 無內盒，內盒相關費用全歸零
+  const g4 = it.innerStack[0]*it.innerStack[1]*it.innerStack[2];
+  const noInnerBox = (g4 === 1);
+  // qty 說明: 內盒/外箱/緩衝 = per-CTN 數量；標籤/包工 = per-PCS 用數（×outerCapacity後才是per-CTN）
+  // perPcs:true 的行，sub = qty * up * outerCapacity，UI 顯示的是 per-PCS 用數
+  const autoRows=[
+    {qty: noInnerBox?0:innerPerCtn, up:it.innerCost,      perPcs:false}, // 0 內盒紙箱
+    {qty:1,                         up:it.outerCost,       perPcs:false}, // 1 外箱紙箱
+    {qty: noInnerBox?0:innerPerCtn, up:it.innerCushionCost,perPcs:false}, // 2 內盒緩衝
+    {qty:1,                         up:it.outerCushionCost,perPcs:false}, // 3 外箱緩衝
+    {qty:(quoUnit==="SET"?0:1),     up:wP,                 perPcs:true},  // 4 警語批號標 (SET=0)
+    {qty:1,                         up:prP,                perPcs:true},  // 5 價標
+    {qty: noInnerBox?0:innerPerCtn, up:inP,                perPcs:false}, // 6 內盒標
+    {qty:1,                         up:ouP,                perPcs:false}, // 7 外箱標
+    {qty:1,                         up:getLABOR(),         perPcs:true},  // 8 包工
+  ];
+  it._autoRows=autoRows;
+  let totalPerCtn=0;
+  it.pm.forEach((row,ri)=>{
+    const ar=autoRows[ri];
+    const qty=row.qty!==null?row.qty:ar.qty;
+    const up=row.up!==null?row.up:ar.up;
+    const sub = ar.perPcs ? qty*up*it.outerCapacity : qty*up;
+    totalPerCtn+=sub;
+  });
+  it.packCostPerPcs=totalPerCtn/it.outerCapacity;
+
+  // CBM
+  it.cbmPerCarton=(it.outerBox.lCm*it.outerBox.wCm*it.outerBox.hCm)/1e6;
+  it.totalCbm=it.cbmPerCarton*it.ctns;
+
+  // 運費
+  calcFreight(it);
+  } catch(err) {
+    console.error('calcItem error (ITEM '+(i+1)+'):', err.message, err.stack);
+    showToast('⚠ 計算錯誤 ITEM '+(i+1)+': '+err.message);
+  }
+}
+
+function lp(t,c){const e=document.getElementById(`lp-${t}-${c}`);return e?+e.value:0;}
+function calcFreight(it){
+  // 完全對應 Excel ITEM 分頁的運雜費公式邏輯:
+  // I19 = 卡車費 (依材積級距，CFS時依CBM查表，CY時固定)
+  // I20 = 報關&文件 (per shipment，含稅固定費總計; FOR時=0)
+  //        CFS: row34 (固定費含稅合計) / CY20: fixed / CY40: fixed
+  // I21 = 海運費 (只有 QUO_TERM=CIF 才計入，CFS row12 per CBM)
+  // I22 = 運雜費 per CBM (CFS: row33 per-CBM含稅合計 × CBM; FOR=0, CY=0)
+  // J19-J22 = 各項金額 / 出貨組合; G22=SUM → /actualQty = per PCS
+
+  const sid=+(document.getElementById('b-shipprice').value)||10;
+  const combo=+(it.combo)||1;
+  const quo=it.quoTerm||'FOB';
+  const cbm=it.totalCbm;
+  const actualQty=it.actualQty||1;
+  const r=CFS.find(c=>c.id===sid)||CFS[9];
+
+  // ── I19: 卡車費 / 拖櫃費
+  let truck;
+  if(it.shpTerm==='CFS'){
+    truck=gv('cfs-t1')||1500;
+    if(cbm>100)truck=gv('cfs-t2')||3800;
+    if(cbm>300)truck=gv('cfs-t3')||4000;
+    if(cbm>500)truck=gv('cfs-t4')||4500;
+  }else if(it.shpTerm==='CY20'){
+    truck=gv('cy20-drag')||3800;
+  }else{
+    truck=gv('cy40-drag')||4500;
+  }
+
+  // ── I20: 報關&文件 (per shipment, 含稅)
+  // CFS row34 = SUM(固定費 rows 19-32) × 1.05
+  // 固定費 = customs + seal + doc + edoc + telex + hdl + sco + ens + afr + vgm + ins
+  let docFixed=0;
+  if(quo==='FOR'){
+    docFixed=0; // FOR 不含
+  }else if(it.shpTerm==='CFS'){
+    const fixedBase=r.customs+r.seal+r.doc+r.edoc+r.telex+r.hdl+r.sco+r.ens+r.afr+r.vgm+r.ins;
+    docFixed=fixedBase*1.05;
+  }else if(it.shpTerm==='CY20'){
+    const cy20r=CY20.find(c=>c.id===sid)||CY20[0];
+    docFixed=cy20r.fixed; // CY20 fixed total already includes all
+  }else{
+    const cy40r=CY40.find(c=>c.id===sid)||CY40[0];
+    docFixed=cy40r.fixed;
+  }
+
+  // ── I21: 海運費 (只有 CIF 才收，CFS row12 = fr per CBM)
+  let seaFreight=0;
+  if(quo==='CIF' && it.shpTerm==='CFS'){
+    seaFreight=r.fr*cbm; // row12 = fr per CBM
+  }
+
+  // ── I22: 運雜費 per CBM (CFS only, row33 = per-CBM含稅合計; FOR/CY=0)
+  let perCbmCharge=0;
+  if(it.shpTerm==='CFS' && quo!=='FOR'){
+    // row33 = (cfs + fr + thc + baf + ls + im + mach) × 1.05
+    perCbmCharge=(r.cfs+r.thc+r.baf+r.ls+r.im+r.mach)*1.05*cbm;
+    // Note: fr included in row33 but only billed separately for CIF; avoid double count
+    // Excel row33 includes all per-CBM items; row34 = fixed items
+    // For non-CIF: fr=0 so no double count; for CIF seaFreight already from fr
+  }
+
+  const total=(truck+docFixed+seaFreight+perCbmCharge)/combo;
+  it.freightTotal=total;
+  it.freightPerPcs=total/actualQty;
+
+  // Build detail rows (matching Excel 4-row structure)
+  it.freightDetail=[];
+  it.freightDetail.push({n:'卡車費',sub:truck,note:it.shpTerm==='CFS'?`${cbm.toFixed(3)} CBM 依級距`:'拖櫃費'});
+  it.freightDetail.push({n:'報關 & 文件',sub:docFixed,note:quo==='FOR'?'FOR 條件不計':'每票固定費含稅'});
+  if(quo==='CIF'){
+    it.freightDetail.push({n:'海運費',sub:seaFreight,note:`CIF 條件 ${r.fr} NT$/CBM × ${cbm.toFixed(3)} CBM`});
+  } else {
+    it.freightDetail.push({n:'海運費',sub:0,note:'非CIF不計'});
+  }
+  it.freightDetail.push({n:'運雜費 (依貨量)',sub:perCbmCharge,
+    note:it.shpTerm==='CFS'&&quo!=='FOR'
+      ?`${((r.cfs+r.thc+r.baf+r.ls+r.im+r.mach)*1.05).toFixed(2)} NT$/CBM × ${cbm.toFixed(3)} CBM`
+      :'CY或FOR不計'});
+}
+
+// ── REFRESH
+function refreshItem(i){
+  const it=items[i];
+  if(!document.getElementById('panel-item-'+i))return;
+
+  sv(`i${i}-rPack`,    f4(it.packCostPerPcs)+' NT$');
+  sv(`i${i}-rFreight`, f4(it.freightPerPcs)+' NT$');
+  sv(`i${i}-rCbm`,     f6(it.cbmPerCarton)+' CBM');
+  sv(`i${i}-rCuft`,    f4(it.cbmPerCarton*CBM2CUFT)+' CUFT');
+  sv(`i${i}-rTotalCbm`,f2(it.totalCbm)+' CBM');
+  sv(`i${i}-rTotalCuft`,f2(it.totalCbm*CBM2CUFT)+' CUFT');
+
+  const badge=document.getElementById(`i${i}-badge`);
+  if(badge)badge.textContent=`${it.shpTerm} | ${it.ctns} CTN | ${it.outerCapacity} PCS/CTN`;
+
+  // Box summary (above stacking settings)
+  const ib=it.innerBox,ob=it.outerBox;
+  const ibGw = it.innerCapacity * it.weight; // grams
+  const obGw = it.outerCapacity * it.weight;
+  const quoU = document.getElementById('b-quounit')?.value||'PCS';
+  const unitLbl = quoU==='SET'?'SET':'PCS';
+  sv(`i${i}-ibox-dim`, ib.lCm?`${f2(ib.lCm)} × ${f2(ib.wCm)} × ${f2(ib.hCm)} cm`:'–');
+  sv(`i${i}-ibox-cap`, it.innerCapacity?`${it.innerCapacity} ${unitLbl} 入/盒`:'');
+  sv(`i${i}-obox-dim`, ob.lCm?`${f2(ob.lCm)} × ${f2(ob.wCm)} × ${f2(ob.hCm)} cm`:'–');
+  sv(`i${i}-obox-cap`, it.outerCapacity?`${it.outerCapacity} ${unitLbl} 入/箱`:'');
+  sv(`i${i}-obox-gw`,  obGw?`${(obGw/1000).toFixed(2)} kg (${obGw} g)`:'–');
+  sv(`i${i}-obox-cbm`, it.cbmPerCarton?f6(it.cbmPerCarton)+' CBM':'–');
+
+  sv(`i${i}-ctns`,    it.ctns,    true);
+  sv(`i${i}-actualQty`,it.actualQty,true);
+  sv(`i${i}-innerCap`,it.innerCapacity);
+  sv(`i${i}-outerCap`,it.outerCapacity);
+  // Sync innerAdd input fields (in case product dims changed)
+  sv(`i${i}-innerAddZ`, it.innerAddZ.toFixed(3), true);
+  sv(`i${i}-innerAddX`, it.innerAddX.toFixed(3), true);
+  sv(`i${i}-innerAddY`, it.innerAddY.toFixed(3), true);
+  // Sync outerAdd readonly fields (auto = inner box size)
+  sv(`i${i}-outerAddZ`, it.outerAddZ.toFixed(3), true);
+  sv(`i${i}-outerAddX`, it.outerAddX.toFixed(3), true);
+  sv(`i${i}-outerAddY`, it.outerAddY.toFixed(3), true);
+
+  sv(`i${i}-ibLI`,f3(ib.lI));sv(`i${i}-ibWI`,f3(ib.wI));sv(`i${i}-ibHI`,f3(ib.hI));
+  sv(`i${i}-ibLCm`,f3(ib.lCm));sv(`i${i}-ibWCm`,f3(ib.wCm));sv(`i${i}-ibHCm`,f3(ib.hCm));
+  sv(`i${i}-ibFen`,f4(it._ibVol));sv(`i${i}-ibCost`,f2(it.innerCost)+' NT$');
+  sv(`i${i}-obLI`,f3(ob.lI));sv(`i${i}-obWI`,f3(ob.wI));sv(`i${i}-obHI`,f3(ob.hI));
+  sv(`i${i}-obLCm`,f3(ob.lCm));sv(`i${i}-obWCm`,f3(ob.wCm));sv(`i${i}-obHCm`,f3(ob.hCm));
+  sv(`i${i}-obFen`,f4(it._obVol));sv(`i${i}-obCost`,f2(it.outerCost)+' NT$');
+
+  // Cushion display
+  const c=it._cush;
+  if(c){
+    const pairs=[
+      ['ib-sep-td',c.ibSepTd],['ib-sep-lr',c.ibSepLr],['ib-sep-fb',c.ibSepFb],
+      ['ib-foam-td',c.ibFoamTd],['ib-foam-lr',c.ibFoamLr],['ib-foam-fb',c.ibFoamFb],
+      ['ob-sep-td',c.obSepTd],['ob-sep-lr',c.obSepLr],['ob-sep-fb',c.obSepFb],
+      ['ob-foam-td',c.obFoamTd],['ob-foam-lr',c.obFoamLr],['ob-foam-fb',c.obFoamFb],
+    ];
+    pairs.forEach(([id,d])=>{
+      sv(`${id}-L`,f2(d.L));sv(`${id}-W`,f2(d.W));sv(`${id}-up`,f4(d.up));sv(`${id}-sub`,f2(d.sub));
+    });
+    // PE / SG special
+    ['ib','ob'].forEach(box=>{
+      sv(`${box}-pe-L`,f2(c[box+'Pe'].L));sv(`${box}-pe-W`,f2(c[box+'Pe'].W));
+      sv(`${box}-pe-sub`,f2(c[box+'Pe'].sub));
+      sv(`${box}-sg-L`,f2(c[box+'Sg'].L));sv(`${box}-sg-W`,f2(c[box+'Sg'].W));
+      sv(`${box}-sg-sub`,f2(c[box+'Sg'].sub));
+      sv(`${box}-plybag-sub`,f2(c[box+'Plybag'].sub));
+    });
+    sv(`i${i}-ibCushTotal`,f2(it.innerCushionCost)+' NT$');
+    sv(`i${i}-obCushTotal`,f2(it.outerCushionCost)+' NT$');
+  }
+
+  // Pack detail (editable)
+  const li=(+(document.getElementById('b-labeltype').value)||4)-1;
+  const ar=it._autoRows||[];
+  const pb=document.getElementById(`i${i}-packDetail`);
+  if(pb){
+    const g4Disp = it.innerStack[0]*it.innerStack[1]*it.innerStack[2];
+    const noIB = g4Disp===1;
+    const noIBrows = new Set([0,2,6]); // 內盒紙箱, 內盒緩衝, 內盒標
+    pb.innerHTML=it.pm.map((row,ri)=>{
+      const ar2=ar[ri]||{qty:0,up:0,perPcs:false};
+      const aQty=ar2.qty, aUp=ar2.up;
+      const qty=row.qty!==null?row.qty:aQty;
+      const up=row.up!==null?row.up:aUp;
+      const sub = ar2.perPcs ? qty*up*it.outerCapacity : qty*up;
+      const ppc=it.outerCapacity>0?sub/it.outerCapacity:0;
+      const dimmed = noIB && noIBrows.has(ri);
+      const zeroNote = dimmed ? ' <span style="font-size:9px;color:var(--text3)">(無內盒)</span>' : '';
+      return `<tr style="${dimmed?'opacity:0.35':''}">
+        <td>${row.n}${zeroNote}</td>
+        <td><input type="number" placeholder="${f2(aQty)}" value="${row.qty!==null?row.qty:''}" style="width:75px;text-align:right" ${dimmed?'disabled':''}
+          oninput="pmQty(${i},${ri},this.value)"
+          title="空白=自動 ${f2(aQty)}"></td>
+        <td><input type="number" placeholder="${f4(aUp)}" value="${row.up!==null?row.up:''}" style="width:80px;text-align:right" ${dimmed?'disabled':''}
+          oninput="pmUp(${i},${ri},this.value)"
+          title="空白=自動 ${f4(aUp)}"></td>
+        <td class="num">${f2(sub)}</td>
+        <td class="rnum">${f2(ppc)}</td>
+      </tr>`;
+    }).join('');
+  }
+  sv(`i${i}-packTotal`,f4(it.packCostPerPcs)+' NT$');
+
+  // Freight detail
+  const ft=document.getElementById(`i${i}-freightTitle`);
+  if(ft)ft.textContent=`[${it.shpTerm}] 整批 ${f2(it.freightTotal)} NT$ ÷ ${it.actualQty} PCS ÷ 組合${it.combo||1}`;
+  const fb=document.getElementById(`i${i}-freightDetail`);
+  if(fb&&it.freightDetail)fb.innerHTML=it.freightDetail.map(d=>`<tr><td>${d.n}</td><td class="rnum">${f2(d.sub)}</td><td style="color:var(--text3);font-size:11px">${d.note||''}</td></tr>`).join('');
+  sv(`i${i}-freightTotal`,f4(it.freightPerPcs)+' NT$');
+}
+
+function recalcAll(){
+  items.forEach((_,i)=>{calcItem(i);refreshItem(i);});
+  saveState(); // auto-save after every recalc
+}
+
+// ── COMPARE
+function buildCompare(){
+  const c=document.getElementById('compare-content');
+  if(!items.length){c.innerHTML='<div class="notice">尚未新增任何項目</div>';return;}
+  const orig=items.map(it=>it.shpTerm);
+  let html='';
+  items.forEach((it,i)=>{
+    const res={};
+    ['CFS','CY20','CY40'].forEach(t=>{items[i].shpTerm=t;calcItem(i);res[t]={fr:it.freightPerPcs,pk:it.packCostPerPcs,tot:it.packCostPerPcs+it.freightPerPcs,cbm:it.totalCbm};});
+    items[i].shpTerm=orig[i];calcItem(i);
+    const best=Object.entries(res).reduce((a,b)=>a[1].tot<b[1].tot?a:b)[0];
+    html+=`<div class="card">
+      <div class="card-title">ITEM ${i+1} — ${it.itemno||'(未命名)'}</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px">估價: ${it.qty} PCS → 實際: ${it.actualQty} PCS | 包裝費: ${f2(it.packCostPerPcs)} NT$/PCS</div>
+      <table class="compare-table"><thead><tr><th>運送方式</th><th>整批材積 CBM</th><th>整批材積 CUFT</th><th>運費/PCS</th><th>包裝/PCS</th><th>合計/PCS</th><th></th></tr></thead><tbody>
+      ${['CFS','CY20','CY40'].map(t=>`<tr class="${t===best?'hl':''}">
+        <td class="tag-${t.toLowerCase()}" style="font-weight:600">${t}</td>
+        <td style="text-align:right;font-family:var(--font-mono)">${f4(res[t].cbm)}</td>
+        <td style="text-align:right;font-family:var(--font-mono)">${f2(res[t].cbm*CBM2CUFT)}</td>
+        <td style="text-align:right;font-family:var(--font-mono)">${f2(res[t].fr)}</td>
+        <td style="text-align:right;font-family:var(--font-mono)">${f2(res[t].pk)}</td>
+        <td class="${t===best?'best':''}" style="text-align:right;font-family:var(--font-mono)">${f2(res[t].tot)}</td>
+        <td style="font-size:11px">${t===best?'<span style="color:var(--green)">✓ 最優</span>':''}</td>
+      </tr>`).join('')}
+      </tbody></table></div>`;
+  });
+  c.innerHTML=html;
+}
+
+// ── REF TABLES
+function buildCFSTable(){
+  const fields=[['CFS Charge/CBM','cfs'],['海運費/CBM','fr'],['THC/CBM','thc'],['BAF/CBM','baf'],['低硫燃油/CBM','ls'],['機械使用費/CBM','mach'],['報關傳輸理貨','customs'],['封條費','seal'],['文件費','doc'],['電放費','telex'],['手續費','hdl'],['AFR','afr'],['VGM','vgm'],['保險費','ins']];
+  let h=`<table class="ref-table"><thead><tr><th>費用項目</th>`;
+  CFS.forEach(r=>h+=`<th>${r.id}<br><small style="font-weight:normal;font-size:9px">${r.name.split('(')[0].trim()}</small></th>`);
+  h+=`</tr></thead><tbody>`;
+  fields.forEach(([lbl,key])=>{h+=`<tr><td style="color:var(--text2)">${lbl}</td>`;CFS.forEach(r=>h+=`<td>${r[key]||0}</td>`);h+=`</tr>`;});
+  document.getElementById('cfs-table-container').innerHTML=h+'</tbody></table>';
+}
+function buildCY20Table(){
+  let h=`<table class="data-table"><thead><tr><th>客戶</th><th style="text-align:right">固定費 (NT$)</th></tr></thead><tbody>`;
+  CY20.forEach(r=>h+=`<tr><td>${r.name}</td><td class="num">${r.fixed}</td></tr>`);
+  document.getElementById('cy20-table-container').innerHTML=h+'</tbody></table>';
+}
+function buildCY40Table(){
+  let h=`<table class="data-table"><thead><tr><th>客戶</th><th style="text-align:right">固定費 (NT$)</th></tr></thead><tbody>`;
+  CY40.forEach(r=>h+=`<tr><td>${r.name}</td><td class="num">${r.fixed}</td></tr>`);
+  document.getElementById('cy40-table-container').innerHTML=h+'</tbody></table>';
+}
+
+function printItem(i){
+  showItemPanel(i);
+  // Hide all other panels, print, restore
+  setTimeout(()=>{
+    const allPanels=document.querySelectorAll('.panel');
+    allPanels.forEach(p=>{
+      if(p.id!=='panel-item-'+i) p.setAttribute('data-was-hidden','1');
+    });
+    window.print();
+    // restore after print dialog closes
+    setTimeout(()=>{
+      allPanels.forEach(p=>p.removeAttribute('data-was-hidden'));
+    },1000);
+  },200);
+}
+function exportSummary(){
+  const c=document.getElementById('b-customer').value,q=document.getElementById('b-quono').value,d=document.getElementById('b-date').value;
+  let t=`包裝運費估價摘要\n客戶: ${c}  報價單號: ${q}  日期: ${d}\n${'─'.repeat(60)}\n`;
+  items.forEach((it,i)=>{
+    t+=`\nITEM ${i+1}: ${it.itemno}\n`;
+    t+=`  尺寸: ${it.lI.toFixed(3)}" × ${it.wI.toFixed(3)}" × ${it.hI.toFixed(3)}"  (${(it.lI*CM).toFixed(2)}×${(it.wI*CM).toFixed(2)}×${(it.hI*CM).toFixed(2)} cm)  重量: ${it.weight}g\n`;
+    t+=`  運送: ${it.shpTerm}  交易條件: ${it.quoTerm||'FOB'}  組合: ${it.combo||1} ITEMs\n`;
+    t+=`  估價: ${it.qty} PCS → 實際: ${it.actualQty} PCS (${it.ctns} CTN × ${it.outerCapacity} PCS/CTN)\n`;
+    t+=`  CBM/CTN: ${f6(it.cbmPerCarton)} (${f4(it.cbmPerCarton*CBM2CUFT)} CUFT)\n`;
+    t+=`  整批: ${f2(it.totalCbm)} CBM (${f2(it.totalCbm*CBM2CUFT)} CUFT)\n`;
+    t+=`  包裝費: ${f4(it.packCostPerPcs)} NT$/PCS  運費: ${f4(it.freightPerPcs)} NT$/PCS\n`;
+    t+=`  合計: ${f4(it.packCostPerPcs+it.freightPerPcs)} NT$/PCS\n  ${'─'.repeat(40)}\n`;
+  });
+  // Try clipboard first; fall back to opening in new window
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(()=>{
+      showToast('摘要已複製到剪貼簿 ✓');
+    }).catch(()=>{ exportFallback(t,q,d); });
+  } else { exportFallback(t,q,d); }
+}
+function exportFallback(t,q,d){
+  // Open in new tab so user can copy manually or Ctrl+S to save
+  const w=window.open('','_blank');
+  if(w){
+    w.document.write('<pre style="font-family:monospace;white-space:pre-wrap;padding:20px">'+t.replace(/</g,'&lt;')+'</pre>');
+    w.document.title='估價摘要_'+(q||'DRAFT');
+  }
+}
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#2ecc8a;color:#0f1117;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;transition:opacity .3s';
+    document.body.appendChild(t);}
+  t.textContent=msg;t.style.opacity='1';
+  setTimeout(()=>t.style.opacity='0',2500);
+}
+
+
+// ============================================================
+//  LOCAL STORAGE 自動儲存
+// ============================================================
+const LS_KEY = 'packship_state';
+
+function saveState(){
+  try {
+    const state = {
+      basic: {
+        date:      document.getElementById('b-date').value,
+        customer:  document.getElementById('b-customer').value,
+        quoNo:     document.getElementById('b-quono').value,
+        usdRate:   document.getElementById('b-usdrate').value,
+        hkdRate:   document.getElementById('b-hkdrate').value,
+        shipPrice: document.getElementById('b-shipprice').value,
+        labelType: document.getElementById('b-labeltype').value,
+        quoUnit:   document.getElementById('b-quounit')?.value||'PCS',
+      },
+      items: items.map(it => {
+        const clone = {...it};
+        // Don't save calculated results, only inputs
+        delete clone.innerBox; delete clone.outerBox;
+        delete clone.freightDetail; delete clone._cush;
+        delete clone._autoRows;
+        return clone;
+      }),
+      labelPrices: ['warn','price','inner','outer'].flatMap(t =>
+        [0,1,2,3].map(c => {
+          const el=document.getElementById('lp-'+t+'-'+c);
+          return {id:'lp-'+t+'-'+c, val:el?el.value:''};
+        })
+      ),
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  } catch(e){ /* ignore quota errors */ }
+}
+
+function loadState(){
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return false;
+    const state = JSON.parse(raw);
+    // Restore basic info
+    const b = state.basic||{};
+    if(b.date)      document.getElementById('b-date').value      = b.date;
+    if(b.customer)  document.getElementById('b-customer').value  = b.customer;
+    if(b.quoNo)     document.getElementById('b-quono').value     = b.quoNo;
+    if(b.usdRate)   document.getElementById('b-usdrate').value   = b.usdRate;
+    if(b.hkdRate)   document.getElementById('b-hkdrate').value   = b.hkdRate;
+    if(b.shipPrice) document.getElementById('b-shipprice').value = b.shipPrice;
+    if(b.labelType) document.getElementById('b-labeltype').value = b.labelType;
+    if(b.quoUnit && document.getElementById('b-quounit'))
+                    document.getElementById('b-quounit').value   = b.quoUnit;
+    // Restore label prices
+    (state.labelPrices||[]).forEach(({id,val})=>{
+      const el=document.getElementById(id); if(el&&val!=='') el.value=val;
+    });
+    // Restore items
+    if(state.items && state.items.length){
+      items.length=0;
+      state.items.forEach((it,idx)=>{
+        // Ensure all required fields exist (handle version mismatches)
+        items.push({
+          id:it.id||idx+1, idx,
+          itemno:it.itemno||'', weight:it.weight||150,
+          unit:it.unit||'inch',
+          lI:+it.lI||0, wI:+it.wI||0, hI:+it.hI||0,
+          lCm:(+it.lI||0)*CM, wCm:(+it.wI||0)*CM, hCm:(+it.hI||0)*CM,
+          qty:+it.qty||500, shpTerm:it.shpTerm||'CFS',
+          quoTerm:it.quoTerm||'FOB', combo:+it.combo||1,
+          innerStack:it.innerStack||[1,1,12],
+          outerStack:it.outerStack||[2,2,1],
+          innerAddZ:+it.innerAddZ||(+it.lI||0),
+          innerAddX:+it.innerAddX||(+it.wI||0),
+          innerAddY:+it.innerAddY||(+it.hI||0),
+          outerAddZ:+it.outerAddZ||0, outerAddX:+it.outerAddX||0, outerAddY:+it.outerAddY||0,
+          _innerAddOverride:it._innerAddOverride||false,
+          _innerGap:it._innerGap||0.25, _outerGap:it._outerGap||0.25,
+          // Cushion fields
+          ib_sep_td_qty:+it.ib_sep_td_qty||0, ib_sep_td_t:+it.ib_sep_td_t||1,
+          ib_sep_lr_qty:+it.ib_sep_lr_qty||0, ib_sep_lr_t:+it.ib_sep_lr_t||1,
+          ib_sep_fb_qty:+it.ib_sep_fb_qty||0, ib_sep_fb_t:+it.ib_sep_fb_t||1,
+          ib_foam_td_qty:+it.ib_foam_td_qty||0, ib_foam_td_t:+it.ib_foam_td_t||1,
+          ib_foam_lr_qty:+it.ib_foam_lr_qty||0, ib_foam_lr_t:+it.ib_foam_lr_t||1,
+          ib_foam_fb_qty:+it.ib_foam_fb_qty||0, ib_foam_fb_t:+it.ib_foam_fb_t||1,
+          ib_pe_qty:+it.ib_pe_qty||0, ib_sg_qty:+it.ib_sg_qty||0, ib_plybag_qty:+it.ib_plybag_qty||0,
+          ob_sep_td_qty:+it.ob_sep_td_qty||0, ob_sep_td_t:+it.ob_sep_td_t||1,
+          ob_sep_lr_qty:+it.ob_sep_lr_qty||0, ob_sep_lr_t:+it.ob_sep_lr_t||1,
+          ob_sep_fb_qty:+it.ob_sep_fb_qty||0, ob_sep_fb_t:+it.ob_sep_fb_t||1,
+          ob_foam_td_qty:+it.ob_foam_td_qty||0, ob_foam_td_t:+it.ob_foam_td_t||1,
+          ob_foam_lr_qty:+it.ob_foam_lr_qty||0, ob_foam_lr_t:+it.ob_foam_lr_t||1,
+          ob_foam_fb_qty:+it.ob_foam_fb_qty||0, ob_foam_fb_t:+it.ob_foam_fb_t||1,
+          ob_pe_qty:+it.ob_pe_qty||0, ob_sg_qty:+it.ob_sg_qty||0, ob_plybag_qty:+it.ob_plybag_qty||0,
+          pm: it.pm||[
+            {n:'內盒 (紙箱)',qty:null,up:null,manual:false},
+            {n:'外箱 (紙箱)',qty:null,up:null,manual:false},
+            {n:'內盒緩衝材費',qty:null,up:null,manual:false},
+            {n:'外箱緩衝材費',qty:null,up:null,manual:false},
+            {n:'警語批號標',qty:null,up:null,manual:false},
+            {n:'價標',qty:null,up:null,manual:false},
+            {n:'內盒標',qty:null,up:null,manual:false},
+            {n:'外箱標',qty:null,up:null,manual:false},
+            {n:'包工',qty:null,up:null,manual:false},
+          ],
+          innerBox:{},outerBox:{},
+          innerCapacity:0,outerCapacity:0,ctns:0,actualQty:0,
+          innerCost:0,outerCost:0,innerCushionCost:0,outerCushionCost:0,
+          packCostPerPcs:0,freightPerPcs:0,cbmPerCarton:0,totalCbm:0,
+          freightTotal:0,freightDetail:[],_innerPerCarton:1,_ibVol:0,_obVol:0,
+        });
+      });
+      nid = Math.max(...items.map(it=>it.id)) + 1;
+      return true;
+    }
+  } catch(e){ console.warn('loadState error:', e); }
+  return false;
+}
+
+function clearState(){
+  if(!confirm('確定要清除所有暫存資料，回到空白狀態？')) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+}
+
+// ============================================================
+//  GOOGLE SHEETS 整合
+// ============================================================
+let GS_URL = localStorage.getItem('gs_api_url') || '';
+
+function setGsUrl(url) {
+  GS_URL = url.trim();
+  localStorage.setItem('gs_api_url', GS_URL);
+}
+
+async function gsCall(params) {
+  if(!GS_URL) { showToast('⚠ 請先設定 Google Sheets API 網址'); return null; }
+  try {
+    const url = GS_URL + '?' + new URLSearchParams(params);
+    const res = await fetch(url);
+    const data = await res.json();
+    if(data.error) { showToast('錯誤: ' + data.error); return null; }
+    return data;
+  } catch(e) {
+    showToast('連線失敗: ' + e.message);
+    return null;
+  }
+}
+
+async function gsPost(body) {
+  if(!GS_URL) { showToast('⚠ 請先設定 Google Sheets API 網址'); return null; }
+  try {
+    const res = await fetch(GS_URL, {
+      method:'POST',
+      body: JSON.stringify(body),
+      headers:{'Content-Type':'application/json'},
+      mode:'cors',
+    });
+    const data = await res.json();
+    if(data.error) { showToast('錯誤: ' + data.error); return null; }
+    return data;
+  } catch(e) {
+    // Apps Script 有時 CORS 需要用 GET 模式
+    showToast('POST 失敗，改用 GET 模式...');
+    return gsCallWithBody(body);
+  }
+}
+
+// Apps Script CORS workaround: encode body as URL param
+async function gsCallWithBody(body) {
+  const url = GS_URL + '?data=' + encodeURIComponent(JSON.stringify(body));
+  try {
+    const res = await fetch(url);
+    return await res.json();
+  } catch(e) {
+    showToast('連線失敗: ' + e.message);
+    return null;
+  }
+}
+
+// ── 從 Google Sheets 載入費率
+async function loadRatesFromSheets() {
+  showToast('⏳ 載入費率中...');
+  const data = await gsCall({action:'getRates'});
+  if(!data) return;
+  // 覆蓋費率常數 (runtime)
+  if(data.cfs  && data.cfs.length)  { CFS.length=0;  data.cfs.forEach(r=>CFS.push(r));   }
+  if(data.cy20 && data.cy20.length) { CY20.length=0; data.cy20.forEach(r=>CY20.push(r)); }
+  if(data.cy40 && data.cy40.length) { CY40.length=0; data.cy40.forEach(r=>CY40.push(r)); }
+  // Labels
+  if(data.labels) {
+    const map = {'警語批號標':'warn','價標':'price','內盒標':'inner','外箱標':'outer'};
+    const cols = ['hkdl','tdsj','dsmd','others'];
+    Object.entries(data.labels).forEach(([name, v]) => {
+      const key = map[name];
+      if(!key) return;
+      cols.forEach((col,ci) => {
+        const el = document.getElementById(`lp-${key}-${ci}`);
+        if(el) el.value = v[col] || 0;
+      });
+    });
+  }
+  recalcAll();
+  showToast('✓ 費率已從 Google Sheets 更新');
+}
+
+// ── 儲存目前報價到 Google Sheets
+async function saveQuoteToSheets() {
+  const quoteData = buildQuotePayload();
+  showToast('⏳ 儲存中...');
+  const res = await gsPost({action:'saveQuote', ...quoteData});
+  if(res) showToast(`✓ 已儲存！報價 ID: ${res.id}`);
+}
+
+function buildQuotePayload() {
+  return {
+    date:      document.getElementById('b-date').value,
+    customer:  document.getElementById('b-customer').value,
+    quoNo:     document.getElementById('b-quono').value,
+    shipPrice: document.getElementById('b-shipprice').value,
+    labelType: document.getElementById('b-labeltype').value,
+    usdRate:   document.getElementById('b-usdrate').value,
+    hkdRate:   document.getElementById('b-hkdrate').value,
+    items: items.map(it => ({...it})),
+  };
+}
+
+// ── 顯示歷史報價列表 Modal
+async function showHistory() {
+  showToast('⏳ 載入歷史報價...');
+  const data = await gsCall({action:'listQuotes'});
+  if(!data) return;
+
+  const overlay = document.getElementById('modal-history');
+  const list = document.getElementById('history-list');
+  if(!list) return;
+
+  if(!data.quotes || data.quotes.length === 0) {
+    list.innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center">尚無歷史報價</div>';
+  } else {
+    list.innerHTML = data.quotes.map(q => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:500">${q.quoNo||'(無單號)'} — ${q.customer||'(無客戶)'}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${q.date||''} &nbsp;|&nbsp; ID: ${q.id} &nbsp;|&nbsp; 建立: ${q.createdAt||''}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="loadQuote('${q.id}')">載入</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteQuote('${q.id}')">刪除</button>
+        </div>
+      </div>`).join('');
+  }
+  overlay.classList.add('open');
+}
+
+// ── 載入指定報價
+async function loadQuote(id) {
+  showToast('⏳ 載入報價中...');
+  const data = await gsCall({action:'getQuote', id});
+  if(!data || !data.quote) return;
+  const q = data.quote;
+
+  // 填入基本資訊
+  if(q.date)      document.getElementById('b-date').value = q.date;
+  if(q.customer)  document.getElementById('b-customer').value = q.customer;
+  if(q.quoNo)     document.getElementById('b-quono').value = q.quoNo;
+  if(q.shipPrice) document.getElementById('b-shipprice').value = q.shipPrice;
+  if(q.labelType) document.getElementById('b-labeltype').value = q.labelType;
+  if(q.usdRate)   document.getElementById('b-usdrate').value = q.usdRate;
+  if(q.hkdRate)   document.getElementById('b-hkdrate').value = q.hkdRate;
+
+  // 重建 items
+  items.length = 0;
+  document.getElementById('item-panels').innerHTML = '';
+  q.items.forEach((it, i) => {
+    items.push({ id:i+1, idx:i, ...it });
+  });
+  renderNav(); renderBasic();
+  items.forEach((_,i) => ensurePanel(i));
+  recalcAll();
+
+  closeModal('modal-history');
+  showPanel('basic');
+  showToast(`✓ 已載入報價: ${q.quoNo||id}`);
+}
+
+// ── 刪除報價
+async function deleteQuote(id) {
+  if(!confirm(`確定要刪除報價 ${id}？`)) return;
+  const res = await gsCall({action:'deleteQuote', id});
+  if(res) { showHistory(); showToast('✓ 已刪除'); }
+}
+
+// ── 設定 API 網址 Modal
+function showSettings() {
+  const overlay = document.getElementById('modal-settings');
+  const input = document.getElementById('gs-url-input');
+  if(input) input.value = GS_URL;
+  overlay.classList.add('open');
+}
+function saveSettings() {
+  const url = document.getElementById('gs-url-input').value;
+  setGsUrl(url);
+  closeModal('modal-settings');
+  showToast('✓ 已儲存 API 網址');
+  if(url) loadRatesFromSheets();
+}
+
+// ── 初始化 Sheets 結構
+async function initSheets() {
+  showToast('⏳ 初始化 Google Sheets...');
+  const res = await gsCall({action:'init'});
+  if(res) showToast(`✓ 初始化完成，建立分頁: ${(res.created||[]).join(', ')}`);
+}
+
+
+// ── SIDEBAR TOGGLE (mobile)
+function toggleSidebar(){
+  const sb=document.querySelector('.sidebar');
+  const ov=document.getElementById('sidebar-overlay');
+  sb.classList.toggle('open');
+  ov.classList.toggle('open');
+}
+// Close sidebar when nav item tapped on mobile
+document.addEventListener('click',e=>{
+  if(e.target.closest('.nav-item')&&window.innerWidth<=768){
+    document.querySelector('.sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+  }
+});
+
+// ── PDF 報價單生成 ────────────────────────────
+// Uses browser print to PDF with a dedicated printable layout injected into the page
+
+function generatePDF(){
+  // Build the full quote as a printable HTML page
+  const pdfWin = window.open('','_blank','width=900,height=700');
+  if(!pdfWin){ showToast('請允許彈出視窗以產生 PDF'); return; }
+
+  const customer  = document.getElementById('b-customer').value  || '–';
+  const quoNo     = document.getElementById('b-quono').value     || '–';
+  const date      = document.getElementById('b-date').value      || '–';
+  const usdRate   = document.getElementById('b-usdrate').value   || '31';
+  const shipIdx   = +document.getElementById('b-shipprice').value || 10;
+  const shipName  = document.getElementById('b-shipprice').selectedOptions[0]?.text || '';
+
+  const f2 = n=>(isNaN(n)||!isFinite(n))?'–':n.toFixed(2);
+  const f4 = n=>(isNaN(n)||!isFinite(n))?'–':n.toFixed(4);
+  const f6 = n=>(isNaN(n)||!isFinite(n))?'–':n.toFixed(6);
+
+  // Rows for all items
+  const itemRows = items.map((it,i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td><strong>${it.itemno||'–'}</strong></td>
+      <td>${it.lI.toFixed(3)}" × ${it.wI.toFixed(3)}" × ${it.hI.toFixed(3)}"</td>
+      <td>${it.weight} g</td>
+      <td>${it.qty} PCS</td>
+      <td>${it.shpTerm} / ${it.quoTerm||'FOB'}</td>
+      <td>${it.ctns} CTN</td>
+      <td>${it.actualQty} PCS</td>
+      <td>${f6(it.cbmPerCarton)}</td>
+      <td>${f2(it.totalCbm)}</td>
+      <td>${f2(it.totalCbm*(35.3147))} cuft</td>
+      <td>${f4(it.packCostPerPcs)}</td>
+      <td>${f4(it.freightPerPcs)}</td>
+      <td><strong>${f4(it.packCostPerPcs + it.freightPerPcs)}</strong></td>
+    </tr>`).join('');
+
+  // Detail sections per item
+  const itemDetails = items.map((it,i) => {
+    const packRows = (it.pm||[]).map((row,ri) => {
+      const ar = (it._autoRows||[])[ri] || {qty:0,up:0};
+      const qty = row.qty !== null ? row.qty : ar.qty;
+      const up  = row.up  !== null ? row.up  : ar.up;
+      return `<tr><td>${row.n}</td><td style="text-align:right">${f2(qty)}</td>
+              <td style="text-align:right">${f4(up)}</td>
+              <td style="text-align:right">${f2(qty*up)}</td>
+              <td style="text-align:right">${f4(qty*up/(it.outerCapacity||1))}</td></tr>`;
+    }).join('');
+    const frRows = (it.freightDetail||[]).map(d =>
+      `<tr><td>${d.n}</td><td style="text-align:right">${f2(d.sub)}</td><td style="color:#666;font-size:10px">${d.note||''}</td></tr>`
+    ).join('');
+    return `
+    <div class="detail-section">
+      <h3>ITEM ${i+1} — ${it.itemno||''}</h3>
+      <div class="detail-meta">
+        尺寸: ${it.lI.toFixed(3)}" × ${it.wI.toFixed(3)}" × ${it.hI.toFixed(3)}" &nbsp;|&nbsp;
+        ${(it.lI*2.54).toFixed(2)} × ${(it.wI*2.54).toFixed(2)} × ${(it.hI*2.54).toFixed(2)} cm &nbsp;|&nbsp;
+        重量 ${it.weight}g &nbsp;|&nbsp; ${it.shpTerm} / ${it.quoTerm||'FOB'} &nbsp;|&nbsp;
+        ${it.qty}→${it.actualQty} PCS (${it.ctns} CTN × ${it.outerCapacity} PCS/CTN)
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px">
+        <div>
+          <div class="sub-title">▸ 包裝費明細</div>
+          <table class="detail-table">
+            <thead><tr><th>項目</th><th>用數</th><th>單價</th><th>小計/CTN</th><th>/PCS</th></tr></thead>
+            <tbody>${packRows}</tbody>
+            <tfoot><tr><td colspan="4" style="font-weight:700">包裝費合計 / PCS</td>
+              <td style="text-align:right;font-weight:700;color:#006600">${f4(it.packCostPerPcs)} NT$</td></tr></tfoot>
+          </table>
+        </div>
+        <div>
+          <div class="sub-title">▸ 運雜費明細</div>
+          <table class="detail-table">
+            <thead><tr><th>項目</th><th>金額</th><th>備註</th></tr></thead>
+            <tbody>${frRows}</tbody>
+            <tfoot><tr><td style="font-weight:700">運費合計 / PCS</td>
+              <td style="text-align:right;font-weight:700;color:#006600">${f4(it.freightPerPcs)} NT$</td><td></td></tr></tfoot>
+          </table>
+          <div class="cost-summary">
+            <div class="cost-row"><span>包裝費 / PCS</span><span>${f4(it.packCostPerPcs)} NT$</span></div>
+            <div class="cost-row"><span>運費 / PCS</span><span>${f4(it.freightPerPcs)} NT$</span></div>
+            <div class="cost-row total"><span>合計 / PCS</span><span>${f4(it.packCostPerPcs+it.freightPerPcs)} NT$</span></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="zh-TW"><head>
+<meta charset="UTF-8">
+<title>PackShip 估價報告 — ${quoNo}</title>
+<style>
+  @page{size:A4;margin:15mm 12mm}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans TC','微軟正黑體',sans-serif;font-size:11px;color:#1a1a1a;line-height:1.5}
+  .report-header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #1a1a2e;padding-bottom:12px;margin-bottom:14px}
+  .report-brand{font-size:22px;font-weight:900;letter-spacing:3px;color:#1a1a2e}
+  .report-brand span{color:#4f8ef7}
+  .report-meta table{border-collapse:collapse;font-size:10.5px}
+  .report-meta td{padding:2px 8px}
+  .report-meta td:first-child{color:#666;text-align:right}
+  .report-meta td:last-child{font-weight:600}
+  h2{font-size:13px;font-weight:700;color:#1a1a2e;margin:14px 0 8px;padding-left:8px;border-left:3px solid #4f8ef7}
+  .summary-table{width:100%;border-collapse:collapse;font-size:10.5px;margin-bottom:16px}
+  .summary-table th{background:#1a1a2e;color:#fff;padding:6px 8px;text-align:left;font-size:10px;letter-spacing:.5px}
+  .summary-table td{padding:5px 8px;border-bottom:1px solid #e0e0e0;vertical-align:middle}
+  .summary-table tr:nth-child(even) td{background:#f8f9ff}
+  .summary-table td:nth-child(n+5){text-align:right;font-family:monospace}
+  .detail-section{margin-bottom:18px;padding:12px;border:1px solid #d0d4e8;border-radius:6px;break-inside:avoid}
+  .detail-section h3{font-size:12px;font-weight:700;color:#1a1a2e;margin-bottom:5px}
+  .detail-meta{font-size:10px;color:#555;margin-bottom:8px;background:#f4f6ff;padding:6px 8px;border-radius:4px}
+  .sub-title{font-size:10.5px;font-weight:700;color:#333;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+  .detail-table{width:100%;border-collapse:collapse;font-size:10px}
+  .detail-table th{background:#f0f2f8;padding:4px 7px;text-align:left;font-size:9.5px;color:#444}
+  .detail-table td{padding:3px 7px;border-bottom:1px solid #eee}
+  .detail-table tfoot td{background:#f8f8f8;font-size:10.5px;border-top:1px solid #bbb}
+  .cost-summary{margin-top:10px;border:1px solid #d0d4e8;border-radius:5px;overflow:hidden}
+  .cost-row{display:flex;justify-content:space-between;padding:5px 10px;font-size:10.5px;border-bottom:1px solid #eee}
+  .cost-row.total{background:#1a1a2e;color:#fff;font-weight:700;font-size:12px}
+  .report-footer{margin-top:20px;padding-top:10px;border-top:1px solid #ccc;font-size:9.5px;color:#888;display:flex;justify-content:space-between}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head><body>
+  <div class="report-header">
+    <div>
+      <div class="report-brand">PACK<span>·</span>SHIP</div>
+      <div style="font-size:10px;color:#666;margin-top:3px">包裝運費估價報告</div>
+    </div>
+    <div class="report-meta">
+      <table>
+        <tr><td>客戶</td><td>${customer}</td></tr>
+        <tr><td>報價單號</td><td>${quoNo}</td></tr>
+        <tr><td>日期</td><td>${date}</td></tr>
+        <tr><td>海運代號</td><td>${shipName}</td></tr>
+        <tr><td>美金匯率</td><td>1 USD = ${usdRate} NT$</td></tr>
+        <tr><td>產生時間</td><td>${new Date().toLocaleString('zh-TW')}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <h2>報價總覽</h2>
+  <table class="summary-table">
+    <thead>
+      <tr>
+        <th>#</th><th>ITEM NO.</th><th>產品尺寸</th><th>重量</th>
+        <th>估價量</th><th>運送/條件</th><th>箱數</th><th>出貨量</th>
+        <th>CBM/CTN</th><th>整批CBM</th><th>整批CUFT</th>
+        <th>包裝/PCS</th><th>運費/PCS</th><th>合計/PCS</th>
+      </tr>
+    </thead>
+    <tbody>${itemRows}</tbody>
+  </table>
+
+  <h2>各 ITEM 費用明細</h2>
+  ${itemDetails}
+
+  <div class="report-footer">
+    <span>由 PackShip 估價系統產生</span>
+    <span>報價單號: ${quoNo} &nbsp;|&nbsp; ${date}</span>
+  </div>
+</body></html>`;
+
+  pdfWin.document.write(html);
+  pdfWin.document.close();
+  setTimeout(()=>{ pdfWin.focus(); pdfWin.print(); }, 600);
+}
+
+</script>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal" style="max-width:540px">
+    <div class="modal-header">
+      <div class="modal-title">🔗 Google Sheets 連線設定</div>
+      <button class="modal-close" onclick="closeModal('modal-settings')">✕</button>
+    </div>
+    <p style="color:var(--text3);font-size:12px;margin-bottom:14px;line-height:1.8">
+      請貼入你的 Google Apps Script Web App 網址。<br>
+      取得方式：Google Sheets → 擴充功能 → Apps Script → 部署 → 管理部署 → 複製網址
+    </p>
+    <div class="field" style="margin-bottom:14px">
+      <label>Apps Script Web App 網址</label>
+      <input type="text" id="gs-url-input" placeholder="https://script.google.com/macros/s/xxxxx/exec"
+        style="font-size:11px">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:space-between;align-items:center">
+      <button class="btn btn-ghost btn-sm" onclick="initSheets()">🔧 初始化 Sheets 結構（第一次使用）</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-settings')">取消</button>
+        <button class="btn btn-primary btn-sm" onclick="saveSettings()">✓ 儲存並連線</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY MODAL -->
+<div class="modal-overlay" id="modal-history">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-header">
+      <div class="modal-title">📋 歷史報價記錄</div>
+      <button class="modal-close" onclick="closeModal('modal-history')">✕</button>
+    </div>
+    <div id="history-list" style="max-height:60vh;overflow-y:auto">
+      <div style="color:var(--text3);padding:20px;text-align:center">載入中...</div>
+    </div>
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+<button class="mobile-fab no-print" onclick="saveQuoteToSheets()">💾 儲存報價</button>
+</body>
+</html>
